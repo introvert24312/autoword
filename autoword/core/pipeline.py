@@ -90,12 +90,13 @@ class PipelineResult:
 class DocumentProcessor:
     """文档处理器 - 核心管道编排器"""
     
-    def __init__(self, config: Optional[PipelineConfig] = None):
+    def __init__(self, config: Optional[PipelineConfig] = None, api_keys: Optional[Dict[str, str]] = None):
         """
         初始化文档处理器
         
         Args:
             config: 管道配置
+            api_keys: API密钥字典
         """
         self.config = config or PipelineConfig()
         self.progress_callbacks: List[Callable[[PipelineProgress], None]] = []
@@ -104,7 +105,7 @@ class DocumentProcessor:
         self.doc_loader = DocLoader()
         self.doc_inspector = DocInspector()
         self.prompt_builder = PromptBuilder()
-        self.task_planner = TaskPlanner(default_model=self.config.model)
+        self.task_planner = TaskPlanner(default_model=self.config.model, api_keys=api_keys)
         self.word_executor = WordExecutor(visible=self.config.visible_word)
         self.format_validator = FormatValidator() if self.config.enable_validation else None
         self.exporter = Exporter(self.config.output_dir) if self.config.export_results else None
@@ -130,7 +131,7 @@ class DocumentProcessor:
             except Exception as e:
                 logger.error(f"进度回调失败: {e}")
     
-    def process_document(self, document_path: str) -> PipelineResult:
+    def process_document(self, document_path: str, output_file_path: Optional[str] = None) -> PipelineResult:
         """
         处理文档的完整管道
         
@@ -149,7 +150,7 @@ class DocumentProcessor:
             
             # 阶段1: 文档加载
             self._report_progress(PipelineStage.LOADING, 0.0, "开始加载文档")
-            document, word_session = self._load_document(document_path)
+            document, word_app = self._load_document(document_path)
             stages_completed.append(PipelineStage.LOADING)
             self._report_progress(PipelineStage.LOADING, 1.0, "文档加载完成")
             
@@ -172,7 +173,7 @@ class DocumentProcessor:
                 
                 # 阶段4: 任务执行
                 self._report_progress(PipelineStage.EXECUTION, 0.0, "开始执行任务")
-                execution_result = self._execute_tasks(task_plan, document_path, comments)
+                execution_result = self._execute_tasks(task_plan, document_path, comments, output_file_path)
                 stages_completed.append(PipelineStage.EXECUTION)
                 self._report_progress(PipelineStage.EXECUTION, 1.0, 
                                     f"任务执行完成: {execution_result.completed_tasks}/{execution_result.total_tasks}")
@@ -210,12 +211,14 @@ class DocumentProcessor:
                 )
                 
             finally:
-                # 确保关闭文档
-                if document:
-                    try:
+                # 确保关闭文档和Word应用程序
+                try:
+                    if document:
                         document.Close()
-                    except:
-                        pass
+                    if word_app:
+                        word_app.Quit()
+                except:
+                    pass
                 
         except Exception as e:
             total_time = time.time() - start_time
@@ -235,10 +238,8 @@ class DocumentProcessor:
     def _load_document(self, document_path: str):
         """加载文档"""
         try:
-            word_session = WordSession(visible=self.config.visible_word)
-            word_app = word_session.__enter__()
-            document = self.doc_loader.load_document(word_app, document_path)
-            return document, word_session
+            word_app, document = self.doc_loader.load_document(document_path, create_backup=self.config.create_backup)
+            return document, word_app
         except Exception as e:
             raise DocumentError(f"文档加载失败: {e}")
     
@@ -258,7 +259,7 @@ class DocumentProcessor:
         except Exception as e:
             raise LLMError(f"任务规划失败: {e}")
     
-    def _execute_tasks(self, task_plan: TaskPlan, document_path: str, comments: List[Comment]) -> ExecutionResult:
+    def _execute_tasks(self, task_plan: TaskPlan, document_path: str, comments: List[Comment], output_file_path: Optional[str] = None) -> ExecutionResult:
         """执行任务"""
         try:
             return self.word_executor.execute_tasks(
@@ -266,7 +267,8 @@ class DocumentProcessor:
                 document_path=document_path,
                 comments=comments,
                 mode=self.config.execution_mode,
-                create_backup=self.config.create_backup
+                create_backup=self.config.create_backup,
+                output_file_path=output_file_path
             )
         except Exception as e:
             raise TaskExecutionError(f"任务执行失败: {e}")
@@ -332,8 +334,11 @@ class DocumentProcessor:
     
     def close(self):
         """关闭处理器资源"""
-        if hasattr(self, 'task_planner'):
-            self.task_planner.close()
+        if hasattr(self, 'task_planner') and hasattr(self.task_planner, 'close'):
+            try:
+                self.task_planner.close()
+            except:
+                pass
 
 
 # 便捷函数

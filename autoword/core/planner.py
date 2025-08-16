@@ -320,20 +320,22 @@ class TaskPlanner:
     
     def __init__(self, 
                  schema_path: str = "schemas/tasks.schema.json",
-                 default_model: ModelType = ModelType.GPT5):
+                 default_model: ModelType = ModelType.GPT5,
+                 api_keys: Optional[Dict[str, str]] = None):
         """
         初始化任务规划器
         
         Args:
             schema_path: JSON Schema 文件路径
             default_model: 默认使用的 LLM 模型
+            api_keys: API密钥字典
         """
         self.schema_path = schema_path
         self.default_model = default_model
         
         # 初始化组件
         self.prompt_builder = PromptBuilder(schema_path)
-        self.llm_client = LLMClient()
+        self.llm_client = LLMClient(api_keys=api_keys)
         self.format_guard = FormatProtectionGuard()
         self.dependency_resolver = TaskDependencyResolver()
         self.risk_assessor = RiskAssessment()
@@ -593,8 +595,11 @@ class TaskPlanner:
     
     def close(self):
         """关闭规划器资源"""
-        if hasattr(self, 'llm_client'):
-            self.llm_client.close()
+        if hasattr(self, 'llm_client') and hasattr(self.llm_client, 'close'):
+            try:
+                self.llm_client.close()
+            except:
+                pass
 
 
 # 便捷函数

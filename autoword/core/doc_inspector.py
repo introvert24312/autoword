@@ -81,21 +81,34 @@ class DocumentInspector:
     def extract_structure(self, document):
         """提取文档结构"""
         try:
-            # 简化的结构提取
-            return {
-                "headings": [],
-                "styles": [],
-                "toc_entries": [],
-                "hyperlinks": []
-            }
+            # 创建DocumentStructure对象
+            from .models import DocumentStructure
+            
+            structure = DocumentStructure(
+                page_count=document.Range().Information(4),  # wdNumberOfPagesInDocument
+                word_count=document.Words.Count,
+                headings=[],
+                styles=[],
+                toc_entries=[],
+                hyperlinks=[],
+                references=[]
+            )
+            
+            return structure
+            
         except Exception as e:
             logger.warning(f"提取文档结构失败: {str(e)}")
-            return {
-                "headings": [],
-                "styles": [],
-                "toc_entries": [],
-                "hyperlinks": []
-            }
+            # 返回默认结构
+            from .models import DocumentStructure
+            return DocumentStructure(
+                page_count=1,
+                word_count=0,
+                headings=[],
+                styles=[],
+                toc_entries=[],
+                hyperlinks=[],
+                references=[]
+            )
 
 
 # 保持向后兼容

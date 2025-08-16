@@ -48,6 +48,7 @@ class LLMClient:
     """LLM 客户端"""
     
     def __init__(self, 
+                 api_keys: Optional[Dict[str, str]] = None,
                  base_url: str = "globalai.vip",
                  timeout: int = 60,
                  max_retries: int = 3):
@@ -55,6 +56,7 @@ class LLMClient:
         初始化 LLM 客户端
         
         Args:
+            api_keys: API密钥字典 {"gpt": "key", "claude": "key"}
             base_url: API 基础URL
             timeout: 请求超时时间
             max_retries: 最大重试次数
@@ -63,18 +65,25 @@ class LLMClient:
         self.timeout = timeout
         self.max_retries = max_retries
         
-        # API密钥
-        self.gpt5_key = "sk-NhjnJtqlZMx4PGTqvkGlH4POT82HHBrBnBbWOat99Bs5VZXi"
-        self.claude37_key = "sk-3w1JFbWUq7tKjpLlopdkISQ9F6fpLhHx5viD0frh43ESE9Io"
+        # API密钥 - 默认值作为后备
+        self.api_keys = api_keys or {
+            "gpt": "sk-NhjnJtqlZMx4PGTqvkGlH4POT82HHBrBnBbWOat99Bs5VZXi",
+            "claude": "sk-3w1JFbWUq7tKjpLlopdkISQ9F6fpLhHx5viD0frh43ESE9Io"
+        }
     
     def _get_api_key(self, model_type: ModelType) -> str:
         """获取API密钥"""
         if model_type == ModelType.GPT5:
-            return self.gpt5_key
+            key = self.api_keys.get("gpt", "")
         elif model_type == ModelType.CLAUDE37:
-            return self.claude37_key
+            key = self.api_keys.get("claude", "")
         else:
             raise APIKeyError(f"不支持的模型类型: {model_type}")
+        
+        if not key:
+            raise APIKeyError(f"未设置{model_type.value}的API密钥")
+        
+        return key
     
     def _make_request(self, model_type: ModelType, messages: list, 
                      temperature: float = 0.7) -> Dict[str, Any]:
@@ -167,7 +176,7 @@ class LLMClient:
             )
     
     def _clean_json_content(self, content: str) -> str:
-        """清理JSON内容，移除markdown标记"""
+        """清理JSON内容，移除markdown标记和修复常见格式问题"""
         content = content.strip()
         
         # 移除```json和```标记
@@ -178,7 +187,42 @@ class LLMClient:
             
         if content.endswith('```'):
             content = content[:-3]
-            
+        
+        content = content.strip()
+        
+        # 修复常见的JSON格式问题
+        import re
+        
+        # 移除注释行（// 和 /* */ 风格）
+        content = re.sub(r'//.*?\n', '\n', content)
+        content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+        
+        # 修复尾随逗号问题
+        content = re.sub(r',(\s*[}\]])', r'\1', content)
+        
+        # 修复缺少逗号的问题
+        content = re.sub(r'"\s*\n\s*"', '",\n"', content)
+        content = re.sub(r'}\s*\n\s*{', '},\n{', content)
+        content = re.sub(r']\s*\n\s*\[', '],\n[', content)
+        content = re.sub(r'"\s+"', '", "', content)  # 修复字符串间缺少逗号
+        
+        # 修复未引用的字符串值
+        content = re.sub(r':\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*([,}\]])', r': "\1"\2', content)
+        
+        # 修复单引号为双引号
+        content = re.sub(r"'([^']*)'", r'"\1"', content)
+        
+        # 确保JSON对象/数组的开始和结束
+        content = content.strip()
+        if not content.startswith(('{', '[')):
+            # 尝试找到第一个 { 或 [
+            start_pos = min(
+                (content.find('{') if content.find('{') != -1 else len(content)),
+                (content.find('[') if content.find('[') != -1 else len(content))
+            )
+            if start_pos < len(content):
+                content = content[start_pos:]
+        
         return content.strip()
     
     def call_model(self, 
@@ -242,31 +286,93 @@ class LLMClient:
         Returns:
             LLM响应
         """
+        original_system_prompt = system_prompt
+        
         for attempt in range(max_json_retries):
             response = self.call_model(model_type, system_prompt, user_prompt)
             
             if not response.success:
                 return response
             
-            # 尝试解析JSON
-            try:
-                json.loads(response.content)
-                return response  # JSON解析成功
-            except json.JSONDecodeError as e:
-                if attempt < max_json_retries - 1:
-                    logger.warning(f"JSON解析失败，重试中... ({attempt + 1}/{max_json_retries})")
-                    # 在系统提示词中强调JSON格式
-                    system_prompt += "\n\n重要：请确保返回有效的JSON格式，不要包含任何额外的文本或说明。"
-                    continue
-                else:
+            # 尝试多种JSON修复策略
+            json_candidates = [
+                response.content,  # 原始内容
+                self._clean_json_content(response.content),  # 清理后的内容
+                self._aggressive_json_fix(response.content),  # 激进修复
+            ]
+            
+            for i, candidate in enumerate(json_candidates):
+                try:
+                    parsed = json.loads(candidate)
+                    # JSON解析成功，返回修复后的内容
                     return LLMResponse(
-                        success=False,
-                        content=response.content,
-                        model=model_type.value,
-                        error=f"JSON解析失败: {str(e)}"
+                        success=True,
+                        content=candidate,
+                        model=response.model,
+                        usage=response.usage
                     )
+                except json.JSONDecodeError as e:
+                    if i == len(json_candidates) - 1:  # 最后一个候选也失败了
+                        logger.warning(f"JSON解析失败 (尝试 {i+1}/{len(json_candidates)}): {str(e)}")
+            
+            # 所有修复策略都失败了，准备重试
+            if attempt < max_json_retries - 1:
+                logger.warning(f"JSON解析失败，重试中... ({attempt + 1}/{max_json_retries})")
+                # 逐步增强系统提示词
+                if attempt == 0:
+                    system_prompt = original_system_prompt + "\n\n重要：请确保返回有效的JSON格式，不要包含任何额外的文本、说明或markdown标记。"
+                elif attempt == 1:
+                    system_prompt = original_system_prompt + "\n\n严格要求：只返回纯JSON，格式如下：\n{\n  \"tasks\": [\n    {\"id\": \"task_1\", \"type\": \"rewrite\", ...}\n  ]\n}\n不要添加任何解释文字。"
+                continue
+            else:
+                # 最后一次尝试也失败了
+                return LLMResponse(
+                    success=False,
+                    content=response.content,
+                    model=model_type.value,
+                    error=f"JSON解析失败，已尝试 {max_json_retries} 次: 最后错误为格式问题"
+                )
         
         return response
+    
+    def _aggressive_json_fix(self, content: str) -> str:
+        """激进的JSON修复策略"""
+        import re
+        
+        content = content.strip()
+        
+        # 移除所有markdown标记
+        content = re.sub(r'```[a-zA-Z]*\n?', '', content)
+        content = re.sub(r'```', '', content)
+        
+        # 移除前后的非JSON文本
+        # 找到第一个 { 或 [
+        start_match = re.search(r'[{\[]', content)
+        if start_match:
+            content = content[start_match.start():]
+        
+        # 找到最后一个 } 或 ]
+        end_match = None
+        for match in re.finditer(r'[}\]]', content):
+            end_match = match
+        if end_match:
+            content = content[:end_match.end()]
+        
+        # 修复常见的JSON错误
+        content = re.sub(r',(\s*[}\]])', r'\1', content)  # 移除尾随逗号
+        content = re.sub(r'([}\]])(\s*)([{\[])', r'\1,\2\3', content)  # 添加缺失的逗号
+        content = re.sub(r'"\s*\n\s*"', '",\n"', content)  # 修复字符串间的逗号
+        
+        # 修复未引用的键名
+        content = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', content)
+        
+        # 修复未引用的字符串值（但不影响数字、布尔值、null）
+        content = re.sub(r':\s*([a-zA-Z_][a-zA-Z0-9_\s]*?)(\s*[,}\]])', 
+                        lambda m: f': "{m.group(1).strip()}"{m.group(2)}' 
+                        if m.group(1).strip() not in ['true', 'false', 'null'] and not m.group(1).strip().isdigit()
+                        else m.group(0), content)
+        
+        return content.strip()
 
 
 # 便捷函数

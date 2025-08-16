@@ -7,3 +7,9 @@ colorlog>=6.7.0
 click>=8.1.0
 pytest>=7.0.0
 pytest-cov>=4.0.0
+
+# GUI Dependencies
+PySide6>=6.6.0
+qframelesswindow>=0.3.0
+qdarktheme>=2.1.0
+cryptography>=41.0.0

@@ -939,7 +939,8 @@ class WordExecutor:
                      document_path: str,
                      comments: List[Comment] = None,
                      mode: ExecutionMode = ExecutionMode.NORMAL,
-                     create_backup: bool = True) -> ExecutionResult:
+                     create_backup: bool = True,
+                     output_file_path: Optional[str] = None) -> ExecutionResult:
         """
         执行任务列表
         
@@ -1023,8 +1024,14 @@ class WordExecutor:
                     
                     # 保存文档
                     if mode != ExecutionMode.DRY_RUN:
-                        document.Save()
-                        logger.info("文档已保存")
+                        if output_file_path:
+                            # 另存为指定文件
+                            document.SaveAs2(output_file_path)
+                            logger.info(f"文档已另存为: {output_file_path}")
+                        else:
+                            # 保存原文件
+                            document.Save()
+                            logger.info("文档已保存")
                     
                 finally:
                     # 关闭文档
