@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AutoWord Task List",
+  "description": "AutoWord 任务列表的 JSON Schema",
+  "type": "object",
+  "properties": {
+    "tasks": {
+      "type": "array",
+      "description": "任务列表",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "locator", "instruction"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "任务唯一标识",
+            "minLength": 1
+          },
+          "source_comment_id": {
+            "type": ["string", "null"],
+            "description": "来源批注ID，格式化任务必须有此字段"
+          },
+          "type": {
+            "type": "string",
+            "description": "任务类型",
+            "enum": [
+              "rewrite",
+              "insert", 
+              "delete",
+              "set_paragraph_style",
+              "set_heading_level",
+              "apply_template",
+              "replace_hyperlink",
+              "rebuild_toc",
+              "update_toc_levels",
+              "refresh_toc_numbers"
+            ]
+          },
+          "locator": {
+            "type": "object",
+            "description": "任务定位器",
+            "required": ["by", "value"],
+            "properties": {
+              "by": {
+                "type": "string",
+                "description": "定位方式",
+                "enum": ["bookmark", "range", "heading", "find"]
+              },
+              "value": {
+                "type": "string",
+                "description": "定位值",
+                "minLength": 1
+              }
+            }
+          },
+          "instruction": {
+            "type": "string",
+            "description": "任务指令",
+            "minLength": 1
+          },
+          "dependencies": {
+            "type": "array",
+            "description": "依赖任务ID列表",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "risk": {
+            "type": "string",
+            "description": "风险等级",
+            "enum": ["low", "medium", "high"],
+            "default": "low"
+          },
+          "checks": {
+            "type": "array",
+            "description": "检查项列表",
+            "items": {
+              "type": "string"
+            },
+            "default": []
+          },
+          "requires_user_review": {
+            "type": "boolean",
+            "description": "是否需要用户审核",
+            "default": false
+          },
+          "notes": {
+            "type": "string",
+            "description": "备注信息"
+          }
+        }
+      }
+    }
+  },
+  "required": ["tasks"]
+}
