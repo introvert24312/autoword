@@ -212,6 +212,9 @@ class LLMClient:
         # 修复单引号为双引号
         content = re.sub(r"'([^']*)'", r'"\1"', content)
         
+        # 修复中文引号问题 - 这是关键修复！
+        content = self._fix_chinese_quotes_in_json(content)
+        
         # 确保JSON对象/数组的开始和结束
         content = content.strip()
         if not content.startswith(('{', '[')):
@@ -335,6 +338,34 @@ class LLMClient:
         
         return response
     
+    def _fix_chinese_quotes_in_json(self, content: str) -> str:
+        """修复JSON中的引号问题，包括中文引号和字符串内部的引号转义"""
+        import re
+        
+        # 1. 替换中文引号为英文引号
+        content = content.replace('"', '"')  # 左双引号
+        content = content.replace('"', '"')  # 右双引号
+        content = content.replace(''', "'")  # 左单引号
+        content = content.replace(''', "'")  # 右单引号
+        
+        # 2. 修复字符串内部的引号转义问题
+        # 使用正则表达式找到所有JSON字符串值，并转义其中的引号
+        def escape_quotes_in_string(match):
+            full_match = match.group(0)
+            key_part = match.group(1)  # 键名部分
+            value_part = match.group(2)  # 值部分
+            
+            # 转义值部分中的引号
+            escaped_value = value_part.replace('"', '\\"')
+            
+            return f'{key_part}"{escaped_value}"'
+        
+        # 匹配 "key": "value" 格式，其中value可能包含引号
+        pattern = r'("[\w_]+"\s*:\s*)"([^"]*(?:"[^"]*)*)"'
+        content = re.sub(pattern, escape_quotes_in_string, content)
+        
+        return content
+    
     def _aggressive_json_fix(self, content: str) -> str:
         """激进的JSON修复策略"""
         import re
@@ -345,23 +376,58 @@ class LLMClient:
         content = re.sub(r'```[a-zA-Z]*\n?', '', content)
         content = re.sub(r'```', '', content)
         
-        # 移除前后的非JSON文本
-        # 找到第一个 { 或 [
-        start_match = re.search(r'[{\[]', content)
-        if start_match:
-            content = content[start_match.start():]
+        # 移除前后的非JSON文本，更精确地提取JSON
+        # 找到第一个完整的JSON对象
+        json_start = -1
+        json_end = -1
+        brace_count = 0
+        in_string = False
+        escape_next = False
         
-        # 找到最后一个 } 或 ]
-        end_match = None
-        for match in re.finditer(r'[}\]]', content):
-            end_match = match
-        if end_match:
-            content = content[:end_match.end()]
+        for i, char in enumerate(content):
+            if escape_next:
+                escape_next = False
+                continue
+                
+            if char == '\\':
+                escape_next = True
+                continue
+                
+            if char == '"' and not escape_next:
+                in_string = not in_string
+                continue
+                
+            if not in_string:
+                if char == '{':
+                    if json_start == -1:
+                        json_start = i
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0 and json_start != -1:
+                        json_end = i + 1
+                        break
+        
+        if json_start != -1 and json_end != -1:
+            content = content[json_start:json_end]
+        else:
+            # 回退到简单方法
+            start_match = re.search(r'[{\[]', content)
+            if start_match:
+                content = content[start_match.start():]
+            
+            end_match = None
+            for match in re.finditer(r'[}\]]', content):
+                end_match = match
+            if end_match:
+                content = content[:end_match.end()]
         
         # 修复常见的JSON错误
         content = re.sub(r',(\s*[}\]])', r'\1', content)  # 移除尾随逗号
         content = re.sub(r'([}\]])(\s*)([{\[])', r'\1,\2\3', content)  # 添加缺失的逗号
         content = re.sub(r'"\s*\n\s*"', '",\n"', content)  # 修复字符串间的逗号
+        content = re.sub(r'}\s*\n\s*"', '},\n"', content)  # 修复对象后的逗号
+        content = re.sub(r'"\s*\n\s*{', '",\n{', content)  # 修复字符串后的逗号
         
         # 修复未引用的键名
         content = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', content)
