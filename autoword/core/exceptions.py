@@ -42,3 +42,7 @@ class TaskExecutionError(AutoWordError):
 class ConfigurationError(AutoWordError):
     """配置异常"""
     pass
+
+class APIKeyError(AutoWordError):
+    """API密钥相关异常"""
+    pass

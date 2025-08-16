@@ -211,3 +211,11 @@ class ValidationResult(BaseModel):
     errors: List[str] = Field(default_factory=list, description="错误列表")
     warnings: List[str] = Field(default_factory=list, description="警告列表")
     details: Dict[str, Any] = Field(default_factory=dict, description="详细信息")
+
+class Document(BaseModel):
+    """文档信息模型"""
+    path: str = Field(..., description="文档路径")
+    title: str = Field(..., description="文档标题")
+    page_count: int = Field(..., description="页数")
+    word_count: int = Field(..., description="字数")
+    comments: List[Comment] = Field(default_factory=list, description="批注列表")

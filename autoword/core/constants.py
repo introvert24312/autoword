@@ -22,27 +22,40 @@ ALLOWED_WITHOUT_COMMENT = {
 }
 
 # LLM 系统提示词
-SYSTEM_PROMPT = """You are a Word editing planner.
-- You will receive the complete context in one turn. Do not request chunking.
-- Do not change formatting unless explicitly requested by a comment.
-- Formatting includes styles, heading levels, template/theme, figure/table styles, TOC structure, hyperlink text/targets.
-- Output only valid JSON matching the schema; no prose.
-- TOC/hyperlink updates must be at the end. Allowed without comment: refresh_toc_numbers only."""
+SYSTEM_PROMPT = """你是一个Word文档自动化助手。根据用户提供的批注，生成对应的任务列表。
+
+重要规则：
+- 不要更改格式，除非批注明确要求
+- 格式包括样式、标题级别、模板/主题等
+- 只输出有效的JSON，不要添加说明文字
+- 严格按照提供的JSON Schema格式返回
+
+支持的任务类型：
+- rewrite: 重写内容（无需批注授权）
+- insert: 插入内容（无需批注授权）
+- delete: 删除内容（无需批注授权）
+- set_heading_level: 设置标题级别（需要批注授权）
+- set_paragraph_style: 设置段落样式（需要批注授权）
+
+定位方式：
+- find: 通过文本查找
+- heading: 通过标题查找
+- bookmark: 通过书签查找"""
 
 # 用户提示词模板
-USER_PROMPT_TEMPLATE = """Document Structure Summary:
+USER_PROMPT_TEMPLATE = """文档结构摘要：
 {snapshot}
 
-Comments (id/author/page/anchor_excerpt/text):
+批注列表：
 {comments}
 
-Output Schema (JSON):
+请按照以下JSON格式返回任务列表：
 {schema_json}
 
-Constraints:
-- Unless a comment explicitly asks for it, DO NOT change formatting (see types).
-- Allowed without comment: rewrite/insert/delete, refresh_toc_numbers.
-- Use bookmarks/anchors in 'locator'. Keep citations unchanged."""
+注意：
+- 除非批注明确要求，否则不要更改格式
+- 每个任务必须有对应的批注ID（source_comment_id）
+- 使用准确的定位信息"""
 
 # API 配置
 API_BASE = "https://globalai.vip/v1/chat/completions"

@@ -1,447 +1,282 @@
 """
 AutoWord LLM Client
-LLM 服务客户端，支持 GPT-5 和 Claude 3.7
+支持 GPT-5 和 Claude 3.7 的 LLM 客户端（中转API）
 """
 
 import os
 import json
-import time
 import logging
-from typing import Dict, Any, Optional, Union
-from dataclasses import dataclass
+import time
+import http.client
+from typing import Optional, Dict, Any
 from enum import Enum
+from dataclasses import dataclass
 
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-
-from .constants import API_BASE, API_TIMEOUT
-from .exceptions import LLMError, ConfigurationError
+from .exceptions import LLMError, APIKeyError
 
 
 logger = logging.getLogger(__name__)
 
 
-class ModelType(str, Enum):
+class ModelType(Enum):
     """支持的模型类型"""
-    GPT5 = "gpt-5"
+    GPT5 = "gpt-4o"  # 使用gpt-4o作为GPT5的模型名
     CLAUDE37 = "claude-3-7-sonnet-20250219"
 
 
 @dataclass
 class LLMResponse:
     """LLM 响应数据类"""
+    success: bool
     content: str
     model: str
     usage: Optional[Dict[str, Any]] = None
-    response_time: float = 0.0
+    error: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
+            "success": self.success,
             "content": self.content,
             "model": self.model,
             "usage": self.usage,
-            "response_time": self.response_time
+            "error": self.error
         }
 
 
 class LLMClient:
-    """LLM 客户端类"""
+    """LLM 客户端"""
     
     def __init__(self, 
-                 api_base: str = API_BASE,
-                 timeout: int = API_TIMEOUT,
-                 max_retries: int = 3,
-                 retry_delay: float = 1.0):
+                 base_url: str = "globalai.vip",
+                 timeout: int = 60,
+                 max_retries: int = 3):
         """
         初始化 LLM 客户端
         
         Args:
-            api_base: API 基础 URL
-            timeout: 请求超时时间(秒)
+            base_url: API 基础URL
+            timeout: 请求超时时间
             max_retries: 最大重试次数
-            retry_delay: 重试延迟(秒)
         """
-        self.api_base = api_base
+        self.base_url = base_url
         self.timeout = timeout
         self.max_retries = max_retries
-        self.retry_delay = retry_delay
         
-        # 配置 HTTP 会话
-        self.session = requests.Session()
-        
-        # 配置重试策略
-        retry_strategy = Retry(
-            total=max_retries,
-            backoff_factor=retry_delay,
-            status_forcelist=[429, 500, 502, 503, 504],
-            allowed_methods=["POST"]
-        )
-        
-        adapter = HTTPAdapter(max_retries=retry_strategy)
-        self.session.mount("http://", adapter)
-        self.session.mount("https://", adapter)
-        
-        # 设置默认请求头
-        self.session.headers.update({
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Connection": "keep-alive",
-            "User-Agent": "AutoWord/1.0"
-        })
+        # API密钥
+        self.gpt5_key = "sk-NhjnJtqlZMx4PGTqvkGlH4POT82HHBrBnBbWOat99Bs5VZXi"
+        self.claude37_key = "sk-3w1JFbWUq7tKjpLlopdkISQ9F6fpLhHx5viD0frh43ESE9Io"
     
-    def _get_api_key(self, model: ModelType) -> str:
-        """
-        获取指定模型的 API 密钥
-        
-        Args:
-            model: 模型类型
-            
-        Returns:
-            API 密钥
-            
-        Raises:
-            ConfigurationError: 如果密钥不存在
-        """
-        if model == ModelType.GPT5:
-            key = os.getenv("GPT5_KEY")
-            if not key:
-                raise ConfigurationError("Missing GPT5_KEY environment variable")
-        elif model == ModelType.CLAUDE37:
-            key = os.getenv("CLAUDE37_KEY")
-            if not key:
-                raise ConfigurationError("Missing CLAUDE37_KEY environment variable")
+    def _get_api_key(self, model_type: ModelType) -> str:
+        """获取API密钥"""
+        if model_type == ModelType.GPT5:
+            return self.gpt5_key
+        elif model_type == ModelType.CLAUDE37:
+            return self.claude37_key
         else:
-            raise ConfigurationError(f"Unsupported model: {model}")
-        
-        return key
+            raise APIKeyError(f"不支持的模型类型: {model_type}")
     
-    def _build_payload(self, 
-                      model: ModelType,
-                      system_prompt: str,
-                      user_prompt: str,
-                      json_mode: bool = True,
-                      temperature: float = 0.0,
-                      top_p: float = 1.0) -> Dict[str, Any]:
-        """
-        构建请求载荷
+    def _make_request(self, model_type: ModelType, messages: list, 
+                     temperature: float = 0.7) -> Dict[str, Any]:
+        """发送API请求"""
+        api_key = self._get_api_key(model_type)
         
-        Args:
-            model: 模型类型
-            system_prompt: 系统提示词
-            user_prompt: 用户提示词
-            json_mode: 是否启用 JSON 模式
-            temperature: 温度参数
-            top_p: Top-p 参数
-            
-        Returns:
-            请求载荷字典
-        """
         payload = {
-            "model": model.value,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
+            "model": model_type.value,
+            "messages": messages,
             "temperature": temperature,
-            "top_p": top_p
+            "max_tokens": 4000
         }
         
-        if json_mode:
-            payload["response_format"] = {"type": "json_object"}
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+            'Host': self.base_url,
+            'Connection': 'keep-alive'
+        }
         
-        return payload
-    
-    def _make_request(self, 
-                     model: ModelType,
-                     payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        发送 HTTP 请求
-        
-        Args:
-            model: 模型类型
-            payload: 请求载荷
-            
-        Returns:
-            响应数据
-            
-        Raises:
-            LLMError: 请求失败时抛出
-        """
-        api_key = self._get_api_key(model)
-        
-        # 设置授权头
-        headers = {"Authorization": f"Bearer {api_key}"}
-        if self.api_base == API_BASE:
-            headers["Host"] = "globalai.vip"
-        
-        try:
-            start_time = time.time()
-            
-            response = self.session.post(
-                f"{self.api_base}/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=self.timeout
-            )
-            
-            response_time = time.time() - start_time
-            
-            # 检查 HTTP 状态码
-            if response.status_code == 401:
-                raise LLMError(f"Authentication failed for {model.value}. Check API key.")
-            elif response.status_code == 429:
-                raise LLMError(f"Rate limit exceeded for {model.value}. Please try again later.")
-            elif response.status_code >= 400:
-                error_msg = f"HTTP {response.status_code}: {response.text}"
-                raise LLMError(f"API request failed for {model.value}: {error_msg}")
-            
-            response.raise_for_status()
-            
-            # 解析响应
+        for attempt in range(self.max_retries):
             try:
-                data = response.json()
-            except json.JSONDecodeError as e:
-                raise LLMError(f"Invalid JSON response from {model.value}: {e}")
-            
-            # 检查响应格式
-            if "choices" not in data or not data["choices"]:
-                raise LLMError(f"Invalid response format from {model.value}: missing choices")
-            
-            choice = data["choices"][0]
-            if "message" not in choice or "content" not in choice["message"]:
-                raise LLMError(f"Invalid response format from {model.value}: missing message content")
-            
-            # 构建响应对象
-            return {
-                "content": choice["message"]["content"],
-                "usage": data.get("usage"),
-                "response_time": response_time
-            }
-            
-        except requests.exceptions.Timeout:
-            raise LLMError(f"Request timeout for {model.value} after {self.timeout} seconds")
-        except requests.exceptions.ConnectionError:
-            raise LLMError(f"Connection error for {model.value}. Check network connectivity.")
-        except requests.exceptions.RequestException as e:
-            raise LLMError(f"Request failed for {model.value}: {e}")
-    
-    def _parse_json_response(self, content: str, model: ModelType) -> Dict[str, Any]:
-        """
-        解析 JSON 响应内容
-        
-        Args:
-            content: 响应内容
-            model: 模型类型
-            
-        Returns:
-            解析后的 JSON 数据
-            
-        Raises:
-            LLMError: JSON 解析失败时抛出
-        """
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError as e:
-            logger.warning(f"JSON parse error for {model.value}: {e}")
-            logger.warning(f"Raw content: {content[:500]}...")
-            
-            # 尝试提取 JSON 部分
-            content = content.strip()
-            
-            # 查找 JSON 对象的开始和结束
-            start_idx = content.find('{')
-            end_idx = content.rfind('}')
-            
-            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                json_part = content[start_idx:end_idx + 1]
+                conn = http.client.HTTPSConnection(self.base_url, timeout=self.timeout)
+                
+                payload_json = json.dumps(payload)
+                conn.request("POST", "/v1/chat/completions", payload_json, headers)
+                
+                response = conn.getresponse()
+                data = response.read()
+                
+                if response.status == 200:
+                    result = json.loads(data.decode("utf-8"))
+                    return result
+                else:
+                    error_msg = f"API请求失败: HTTP {response.status}"
+                    if attempt < self.max_retries - 1:
+                        logger.warning(f"{error_msg}, 重试中... ({attempt + 1}/{self.max_retries})")
+                        time.sleep(2 ** attempt)  # 指数退避
+                        continue
+                    else:
+                        raise LLMError(error_msg)
+                        
+            except Exception as e:
+                if attempt < self.max_retries - 1:
+                    logger.warning(f"请求异常: {str(e)}, 重试中... ({attempt + 1}/{self.max_retries})")
+                    time.sleep(2 ** attempt)
+                    continue
+                else:
+                    raise LLMError(f"API请求失败: {str(e)}")
+            finally:
                 try:
-                    return json.loads(json_part)
-                except json.JSONDecodeError:
+                    conn.close()
+                except:
                     pass
-            
-            raise LLMError(f"Failed to parse JSON response from {model.value}: {e}")
+        
+        raise LLMError("所有重试都失败了")
     
-    def call_model(self,
-                  model: ModelType,
-                  system_prompt: str,
-                  user_prompt: str,
-                  json_mode: bool = True,
-                  temperature: float = 0.0,
-                  top_p: float = 1.0) -> LLMResponse:
+    def _parse_response(self, response_data: Dict[str, Any], model_type: ModelType) -> LLMResponse:
+        """解析API响应"""
+        try:
+            if "choices" in response_data and len(response_data["choices"]) > 0:
+                content = response_data["choices"][0]["message"]["content"]
+                usage = response_data.get("usage", {})
+                
+                # 清理JSON标记
+                content = self._clean_json_content(content)
+                
+                return LLMResponse(
+                    success=True,
+                    content=content,
+                    model=model_type.value,
+                    usage=usage
+                )
+            else:
+                error_msg = response_data.get("error", {}).get("message", "未知错误")
+                return LLMResponse(
+                    success=False,
+                    content="",
+                    model=model_type.value,
+                    error=error_msg
+                )
+                
+        except Exception as e:
+            return LLMResponse(
+                success=False,
+                content="",
+                model=model_type.value,
+                error=f"响应解析失败: {str(e)}"
+            )
+    
+    def _clean_json_content(self, content: str) -> str:
+        """清理JSON内容，移除markdown标记"""
+        content = content.strip()
+        
+        # 移除```json和```标记
+        if content.startswith('```json'):
+            content = content[7:]
+        elif content.startswith('```'):
+            content = content[3:]
+            
+        if content.endswith('```'):
+            content = content[:-3]
+            
+        return content.strip()
+    
+    def call_model(self, 
+                   model_type: ModelType,
+                   system_prompt: str,
+                   user_prompt: str,
+                   temperature: float = 0.7) -> LLMResponse:
         """
         调用指定模型
         
         Args:
-            model: 模型类型
+            model_type: 模型类型
             system_prompt: 系统提示词
             user_prompt: 用户提示词
-            json_mode: 是否启用 JSON 模式
             temperature: 温度参数
-            top_p: Top-p 参数
             
         Returns:
-            LLM 响应对象
-            
-        Raises:
-            LLMError: 调用失败时抛出
+            LLM响应
         """
-        logger.info(f"Calling {model.value} with {len(user_prompt)} chars")
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
         
-        payload = self._build_payload(
-            model, system_prompt, user_prompt, 
-            json_mode, temperature, top_p
-        )
-        
-        # 执行请求（带重试）
-        last_error = None
-        for attempt in range(self.max_retries + 1):
-            try:
-                response_data = self._make_request(model, payload)
-                
-                return LLMResponse(
-                    content=response_data["content"],
-                    model=model.value,
-                    usage=response_data.get("usage"),
-                    response_time=response_data["response_time"]
-                )
-                
-            except LLMError as e:
-                last_error = e
-                if attempt < self.max_retries:
-                    wait_time = self.retry_delay * (2 ** attempt)
-                    logger.warning(f"Attempt {attempt + 1} failed for {model.value}: {e}")
-                    logger.info(f"Retrying in {wait_time} seconds...")
-                    time.sleep(wait_time)
-                else:
-                    logger.error(f"All {self.max_retries + 1} attempts failed for {model.value}")
-                    break
-        
-        raise last_error or LLMError(f"Unknown error calling {model.value}")
+        try:
+            response_data = self._make_request(model_type, messages, temperature)
+            return self._parse_response(response_data, model_type)
+        except Exception as e:
+            logger.error(f"模型调用失败: {str(e)}")
+            return LLMResponse(
+                success=False,
+                content="",
+                model=model_type.value,
+                error=str(e)
+            )
     
-    def call_gpt5(self,
-                 system_prompt: str,
-                 user_prompt: str,
-                 json_mode: bool = True) -> LLMResponse:
-        """
-        调用 GPT-5 模型
-        
-        Args:
-            system_prompt: 系统提示词
-            user_prompt: 用户提示词
-            json_mode: 是否启用 JSON 模式
-            
-        Returns:
-            LLM 响应对象
-        """
-        return self.call_model(
-            ModelType.GPT5, system_prompt, user_prompt, json_mode
-        )
+    def call_gpt5(self, system_prompt: str, user_prompt: str, 
+                  temperature: float = 0.7) -> LLMResponse:
+        """调用GPT-5模型"""
+        return self.call_model(ModelType.GPT5, system_prompt, user_prompt, temperature)
     
-    def call_claude37(self,
-                     system_prompt: str,
-                     user_prompt: str,
-                     json_mode: bool = True) -> LLMResponse:
-        """
-        调用 Claude 3.7 模型
-        
-        Args:
-            system_prompt: 系统提示词
-            user_prompt: 用户提示词
-            json_mode: 是否启用 JSON 模式
-            
-        Returns:
-            LLM 响应对象
-        """
-        return self.call_model(
-            ModelType.CLAUDE37, system_prompt, user_prompt, json_mode
-        )
+    def call_claude37(self, system_prompt: str, user_prompt: str,
+                      temperature: float = 0.7) -> LLMResponse:
+        """调用Claude 3.7模型"""
+        return self.call_model(ModelType.CLAUDE37, system_prompt, user_prompt, temperature)
     
-    def call_with_json_retry(self,
-                           model: ModelType,
+    def call_with_json_retry(self, 
+                           model_type: ModelType,
                            system_prompt: str,
                            user_prompt: str,
-                           max_json_retries: int = 2) -> Dict[str, Any]:
+                           max_json_retries: int = 3) -> LLMResponse:
         """
-        调用模型并解析 JSON，失败时重试
+        调用模型并重试JSON解析
         
         Args:
-            model: 模型类型
+            model_type: 模型类型
             system_prompt: 系统提示词
             user_prompt: 用户提示词
-            max_json_retries: JSON 解析最大重试次数
+            max_json_retries: JSON解析最大重试次数
             
         Returns:
-            解析后的 JSON 数据
-            
-        Raises:
-            LLMError: 调用或解析失败时抛出
+            LLM响应
         """
-        for attempt in range(max_json_retries + 1):
+        for attempt in range(max_json_retries):
+            response = self.call_model(model_type, system_prompt, user_prompt)
+            
+            if not response.success:
+                return response
+            
+            # 尝试解析JSON
             try:
-                response = self.call_model(
-                    model, system_prompt, user_prompt, json_mode=True
-                )
-                
-                return self._parse_json_response(response.content, model)
-                
-            except LLMError as e:
-                if "parse JSON" in str(e) and attempt < max_json_retries:
-                    logger.warning(f"JSON parse failed, retrying... (attempt {attempt + 1})")
-                    # 在重试时强调 JSON 格式要求
-                    enhanced_system = system_prompt + "\n\nIMPORTANT: You MUST respond with valid JSON only. No additional text or explanations."
-                    system_prompt = enhanced_system
+                json.loads(response.content)
+                return response  # JSON解析成功
+            except json.JSONDecodeError as e:
+                if attempt < max_json_retries - 1:
+                    logger.warning(f"JSON解析失败，重试中... ({attempt + 1}/{max_json_retries})")
+                    # 在系统提示词中强调JSON格式
+                    system_prompt += "\n\n重要：请确保返回有效的JSON格式，不要包含任何额外的文本或说明。"
                     continue
                 else:
-                    raise e
+                    return LLMResponse(
+                        success=False,
+                        content=response.content,
+                        model=model_type.value,
+                        error=f"JSON解析失败: {str(e)}"
+                    )
         
-        raise LLMError(f"Failed to get valid JSON response from {model.value} after {max_json_retries + 1} attempts")
-    
-    def close(self):
-        """关闭客户端会话"""
-        if hasattr(self, 'session'):
-            self.session.close()
-    
-    def __enter__(self):
-        """上下文管理器入口"""
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """上下文管理器出口"""
-        self.close()
+        return response
 
 
 # 便捷函数
-def call_gpt5(system_prompt: str, user_prompt: str, json_mode: bool = True) -> str:
-    """
-    便捷函数：调用 GPT-5
-    
-    Args:
-        system_prompt: 系统提示词
-        user_prompt: 用户提示词
-        json_mode: 是否启用 JSON 模式
-        
-    Returns:
-        响应内容
-    """
-    with LLMClient() as client:
-        response = client.call_gpt5(system_prompt, user_prompt, json_mode)
-        return response.content
+def call_gpt5(system_prompt: str, user_prompt: str, temperature: float = 0.7) -> LLMResponse:
+    """便捷函数：调用GPT-5"""
+    client = LLMClient()
+    return client.call_gpt5(system_prompt, user_prompt, temperature)
 
 
-def call_claude37(system_prompt: str, user_prompt: str, json_mode: bool = True) -> str:
-    """
-    便捷函数：调用 Claude 3.7
-    
-    Args:
-        system_prompt: 系统提示词
-        user_prompt: 用户提示词
-        json_mode: 是否启用 JSON 模式
-        
-    Returns:
-        响应内容
-    """
-    with LLMClient() as client:
-        response = client.call_claude37(system_prompt, user_prompt, json_mode)
-        return response.content
+def call_claude37(system_prompt: str, user_prompt: str, temperature: float = 0.7) -> LLMResponse:
+    """便捷函数：调用Claude 3.7"""
+    client = LLMClient()
+    return client.call_claude37(system_prompt, user_prompt, temperature)

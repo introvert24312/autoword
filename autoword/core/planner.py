@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 class PlanningResult:
     """规划结果数据类"""
     success: bool
+    tasks: List[Task] = None  # 添加tasks属性
     task_plan: Optional[TaskPlan] = None
     original_tasks: List[Dict[str, Any]] = None
     filtered_tasks: List[Dict[str, Any]] = None
@@ -409,6 +410,7 @@ class TaskPlanner:
             
             return PlanningResult(
                 success=True,
+                tasks=sorted_tasks,  # 添加tasks字段
                 task_plan=task_plan,
                 original_tasks=tasks_data,
                 filtered_tasks=authorized_tasks,
@@ -425,6 +427,7 @@ class TaskPlanner:
             
             return PlanningResult(
                 success=False,
+                tasks=[],  # 添加空的tasks列表
                 error_message=str(e),
                 planning_time=planning_time
             )
@@ -436,11 +439,14 @@ class TaskPlanner:
         
         try:
             # 使用 JSON 重试机制确保获得有效响应
-            response_data = self.llm_client.call_with_json_retry(
+            response = self.llm_client.call_with_json_retry(
                 model, system_prompt, user_prompt, max_json_retries=2
             )
             
-            return json.dumps(response_data, ensure_ascii=False)
+            if not response.success:
+                raise LLMError(f"LLM 调用失败: {response.error}")
+            
+            return response.content
             
         except Exception as e:
             raise LLMError(f"LLM 调用失败: {e}")
@@ -537,6 +543,7 @@ class TaskPlanner:
             
             return PlanningResult(
                 success=True,
+                tasks=sorted_tasks,  # 添加tasks字段
                 task_plan=task_plan,
                 original_tasks=all_tasks,
                 filtered_tasks=authorized_tasks,
@@ -550,6 +557,7 @@ class TaskPlanner:
             
             return PlanningResult(
                 success=False,
+                tasks=[],  # 添加空的tasks列表
                 error_message=f"分块处理失败: {e}",
                 planning_time=planning_time
             )
