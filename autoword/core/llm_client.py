@@ -348,21 +348,21 @@ class LLMClient:
         content = content.replace(''', "'")  # 左单引号
         content = content.replace(''', "'")  # 右单引号
         
-        # 2. 修复字符串内部的引号转义问题
-        # 使用正则表达式找到所有JSON字符串值，并转义其中的引号
-        def escape_quotes_in_string(match):
-            full_match = match.group(0)
-            key_part = match.group(1)  # 键名部分
-            value_part = match.group(2)  # 值部分
+        # 2. 修复字符串值中的未转义引号
+        # 这是一个简化的方法：在字符串值中查找并转义引号
+        def fix_string_value(match):
+            prefix = match.group(1)  # ": "
+            value = match.group(2)   # 字符串内容
+            suffix = match.group(3)  # "
             
-            # 转义值部分中的引号
-            escaped_value = value_part.replace('"', '\\"')
-            
-            return f'{key_part}"{escaped_value}"'
+            # 转义值中的引号
+            escaped_value = value.replace('"', '\\"')
+            return f'{prefix}{escaped_value}{suffix}'
         
-        # 匹配 "key": "value" 格式，其中value可能包含引号
-        pattern = r'("[\w_]+"\s*:\s*)"([^"]*(?:"[^"]*)*)"'
-        content = re.sub(pattern, escape_quotes_in_string, content)
+        # 匹配模式: ": "...内容..." 其中内容可能包含引号
+        # 使用非贪婪匹配避免跨越多个字符串
+        pattern = r'(:\s*")([^"]*(?:"[^"]*)*?)("(?:\s*[,}\]]))'
+        content = re.sub(pattern, fix_string_value, content)
         
         return content
     
