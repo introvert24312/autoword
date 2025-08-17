@@ -1,0 +1,44 @@
+{
+  "chapter_assertions": {
+    "forbidden_level_1_headings": ["摘要", "参考文献", "Abstract", "References", "Bibliography"],
+    "case_sensitive": false,
+    "match_mode": "contains"
+  },
+  "style_assertions": {
+    "H1": {
+      "font_east_asian": "楷体",
+      "font_latin": "Times New Roman",
+      "font_size_pt": 12,
+      "font_bold": true,
+      "line_spacing_mode": "MULTIPLE",
+      "line_spacing_value": 2.0
+    },
+    "H2": {
+      "font_east_asian": "宋体",
+      "font_latin": "Times New Roman",
+      "font_size_pt": 12,
+      "font_bold": true,
+      "line_spacing_mode": "MULTIPLE",
+      "line_spacing_value": 2.0
+    },
+    "Normal": {
+      "font_east_asian": "宋体",
+      "font_latin": "Times New Roman",
+      "font_size_pt": 12,
+      "font_bold": false,
+      "line_spacing_mode": "MULTIPLE",
+      "line_spacing_value": 2.0
+    }
+  },
+  "toc_assertions": {
+    "require_page_numbers": true,
+    "require_heading_consistency": true,
+    "max_toc_levels": 9,
+    "allow_empty_toc": false
+  },
+  "pagination_assertions": {
+    "require_fields_update": true,
+    "require_repagination": true,
+    "verify_modified_time": true
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "style_aliases": {
+    "Heading 1": "标题 1",
+    "Heading 2": "标题 2",
+    "Heading 3": "标题 3",
+    "Heading 4": "标题 4",
+    "Heading 5": "标题 5",
+    "Heading 6": "标题 6",
+    "Heading 7": "标题 7",
+    "Heading 8": "标题 8",
+    "Heading 9": "标题 9",
+    "Normal": "正文",
+    "Title": "标题",
+    "Subtitle": "副标题",
+    "Body Text": "正文",
+    "Caption": "题注",
+    "Header": "页眉",
+    "Footer": "页脚",
+    "Table of Contents": "目录",
+    "Index": "索引",
+    "Bibliography": "参考文献",
+    "Abstract": "摘要"
+  },
+  "font_fallbacks": {
+    "楷体": ["楷体", "楷体_GB2312", "STKaiti", "KaiTi"],
+    "宋体": ["宋体", "SimSun", "NSimSun", "宋体-简"],
+    "黑体": ["黑体", "SimHei", "Microsoft YaHei", "微软雅黑"],
+    "仿宋": ["仿宋", "FangSong", "FangSong_GB2312", "仿宋_GB2312"],
+    "微软雅黑": ["微软雅黑", "Microsoft YaHei", "Microsoft YaHei UI"],
+    "Times New Roman": ["Times New Roman", "Times", "serif"],
+    "Arial": ["Arial", "Helvetica", "sans-serif"],
+    "Calibri": ["Calibri", "Arial", "sans-serif"],
+    "Consolas": ["Consolas", "Courier New", "monospace"],
+    "Georgia": ["Georgia", "Times New Roman", "serif"]
+  },
+  "enable_warnings_log": true,
+  "case_sensitive_styles": false,
+  "auto_detect_styles": true,
+  "fallback_timeout_ms": 5000,
+  "max_fallback_attempts": 3
+}

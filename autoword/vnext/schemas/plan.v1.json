@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://autoword.com/schemas/plan.v1.json",
+  "title": "AutoWord vNext Plan V1 Schema",
+  "description": "Execution plan schema for AutoWord vNext pipeline - whitelisted atomic operations only",
+  "type": "object",
+  "required": ["schema_version", "ops"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "plan.v1"
+    },
+    "ops": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["operation_type", "heading_text", "level"],
+            "additionalProperties": false,
+            "properties": {
+              "operation_type": {"type": "string", "const": "delete_section_by_heading"},
+              "heading_text": {"type": "string", "minLength": 1, "maxLength": 255},
+              "level": {"type": "integer", "minimum": 1, "maximum": 9},
+              "match": {"type": "string", "enum": ["EXACT", "CONTAINS", "REGEX"], "default": "EXACT"},
+              "case_sensitive": {"type": "boolean", "default": false},
+              "occurrence_index": {"type": ["integer", "null"], "minimum": 1}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["operation_type"],
+            "additionalProperties": false,
+            "properties": {
+              "operation_type": {"type": "string", "const": "update_toc"}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["operation_type"],
+            "additionalProperties": false,
+            "properties": {
+              "operation_type": {"type": "string", "const": "delete_toc"},
+              "mode": {"type": "string", "enum": ["all", "first", "last"], "default": "all"}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["operation_type", "target_style_name"],
+            "additionalProperties": false,
+            "properties": {
+              "operation_type": {"type": "string", "const": "set_style_rule"},
+              "target_style_name": {"type": "string", "minLength": 1, "maxLength": 255},
+              "font": {
+                "type": ["object", "null"],
+                "properties": {
+                  "east_asian": {"type": ["string", "null"]},
+                  "latin": {"type": ["string", "null"]},
+                  "size_pt": {"type": ["integer", "null"], "minimum": 1, "maximum": 72},
+                  "bold": {"type": ["boolean", "null"]},
+                  "italic": {"type": ["boolean", "null"]},
+                  "color_hex": {"type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$"}
+                },
+                "additionalProperties": false
+              },
+              "paragraph": {
+                "type": ["object", "null"],
+                "properties": {
+                  "line_spacing_mode": {"type": ["string", "null"], "enum": ["SINGLE", "MULTIPLE", "EXACTLY"]},
+                  "line_spacing_value": {"type": ["number", "null"], "minimum": 0.1, "maximum": 10.0},
+                  "space_before_pt": {"type": ["number", "null"], "minimum": 0, "maximum": 1000},
+                  "space_after_pt": {"type": ["number", "null"], "minimum": 0, "maximum": 1000},
+                  "indent_left_pt": {"type": ["number", "null"], "minimum": 0, "maximum": 1000},
+                  "indent_right_pt": {"type": ["number", "null"], "minimum": 0, "maximum": 1000},
+                  "indent_first_line_pt": {"type": ["number", "null"], "minimum": -1000, "maximum": 1000}
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["operation_type", "selector", "target_style_name"],
+            "additionalProperties": false,
+            "properties": {
+              "operation_type": {"type": "string", "const": "reassign_paragraphs_to_style"},
+              "selector": {"type": "object", "minProperties": 1},
+              "target_style_name": {"type": "string", "minLength": 1, "maxLength": 255},
+              "clear_direct_formatting": {"type": "boolean", "default": false}
+            }
+          },
+          {
+            "type": "object",
+            "required": ["operation_type", "scope"],
+            "additionalProperties": false,
+            "properties": {
+              "operation_type": {"type": "string", "const": "clear_direct_formatting"},
+              "scope": {"type": "string", "enum": ["document", "selection", "range"]},
+              "range_spec": {"type": ["object", "null"]},
+              "authorization_required": {"type": "boolean", "const": true}
+            }
+          }
+        ]
+      }
+    }
+  }
+}

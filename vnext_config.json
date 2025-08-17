@@ -1,0 +1,19 @@
+{
+  "localization": {
+    "language": "auto",
+    "style_aliases": {},
+    "font_fallbacks": {}
+  },
+  "validation": {
+    "strict_mode": false,
+    "rollback_on_failure": false,
+    "chapter_assertions": true,
+    "style_assertions": false,
+    "toc_assertions": true
+  },
+  "audit": {
+    "save_snapshots": true,
+    "generate_diff_reports": true,
+    "output_directory": "./audit_output"
+  }
+}

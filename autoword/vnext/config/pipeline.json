@@ -1,0 +1,34 @@
+{
+  "pipeline_settings": {
+    "enable_rollback": true,
+    "enable_audit_trail": true,
+    "max_execution_time_seconds": 300,
+    "temp_directory": "temp",
+    "audit_directory": "audit_runs"
+  },
+  "validation_settings": {
+    "enable_chapter_assertions": true,
+    "enable_style_assertions": true,
+    "enable_toc_assertions": true,
+    "enable_pagination_assertions": true,
+    "strict_validation": true
+  },
+  "executor_settings": {
+    "enable_com_cleanup": true,
+    "com_timeout_seconds": 30,
+    "max_retry_attempts": 3,
+    "enable_operation_logging": true
+  },
+  "planner_settings": {
+    "llm_timeout_seconds": 60,
+    "max_plan_operations": 50,
+    "enable_schema_validation": true,
+    "enable_whitelist_checking": true
+  },
+  "extractor_settings": {
+    "max_preview_length": 120,
+    "enable_inventory_extraction": true,
+    "preserve_formatting": false,
+    "extract_metadata": true
+  }
+}

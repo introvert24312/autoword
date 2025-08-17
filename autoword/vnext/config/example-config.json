@@ -1,0 +1,12 @@
+{
+  "model": "gpt4",
+  "temperature": 0.1,
+  "audit_dir": "./audit_trails",
+  "visible": false,
+  "verbose": true,
+  "monitoring_level": "detailed",
+  "enable_memory_monitoring": true,
+  "memory_warning_threshold": 1024,
+  "memory_critical_threshold": 2048,
+  "log_file": "vnext-pipeline.log"
+}

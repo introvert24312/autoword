@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://autoword.com/schemas/inventory.full.v1.json",
+  "title": "AutoWord vNext Inventory Full V1 Schema",
+  "description": "Complete inventory schema for AutoWord vNext pipeline - OOXML fragments and media storage",
+  "type": "object",
+  "required": ["schema_version", "ooxml_fragments", "media_indexes", "content_controls", "formulas", "charts"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "inventory.full.v1"
+    },
+    "ooxml_fragments": {
+      "type": "object",
+      "description": "OOXML fragments stored as key-value pairs",
+      "additionalProperties": {
+        "type": "string",
+        "description": "OOXML content as string"
+      }
+    },
+    "media_indexes": {
+      "type": "object",
+      "description": "Media file references indexed by file path",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["media_id", "content_type"],
+        "additionalProperties": false,
+        "properties": {
+          "media_id": {"type": "string", "minLength": 1},
+          "content_type": {"type": "string", "minLength": 1},
+          "file_extension": {"type": ["string", "null"]},
+          "size_bytes": {"type": ["integer", "null"], "minimum": 0}
+        }
+      }
+    },
+    "content_controls": {
+      "type": "array",
+      "description": "Content control references",
+      "items": {
+        "type": "object",
+        "required": ["paragraph_index", "control_id", "control_type"],
+        "additionalProperties": false,
+        "properties": {
+          "paragraph_index": {"type": "integer", "minimum": 0},
+          "control_id": {"type": "string", "minLength": 1},
+          "control_type": {"type": "string", "minLength": 1},
+          "title": {"type": ["string", "null"]},
+          "tag": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "formulas": {
+      "type": "array",
+      "description": "Formula references (equations, etc.)",
+      "items": {
+        "type": "object",
+        "required": ["paragraph_index", "formula_id", "formula_type"],
+        "additionalProperties": false,
+        "properties": {
+          "paragraph_index": {"type": "integer", "minimum": 0},
+          "formula_id": {"type": "string", "minLength": 1},
+          "formula_type": {"type": "string", "minLength": 1},
+          "latex_code": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "charts": {
+      "type": "array",
+      "description": "Chart/SmartArt references",
+      "items": {
+        "type": "object",
+        "required": ["paragraph_index", "chart_id", "chart_type"],
+        "additionalProperties": false,
+        "properties": {
+          "paragraph_index": {"type": "integer", "minimum": 0},
+          "chart_id": {"type": "string", "minLength": 1},
+          "chart_type": {"type": "string", "minLength": 1},
+          "title": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}
