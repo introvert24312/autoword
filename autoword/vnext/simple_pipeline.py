@@ -572,7 +572,13 @@ class SimplePipeline:
                         para.Range.ParagraphFormat.LineSpacing = 24  # 2倍行距
                         logger.info(f"应用3级标题格式到: {text_preview}... (outline_level={outline_level})")
                         
-                    elif outline_level == 10:  # 正文级别（Word中正文的outline level通常是10）
+                    elif outline_level == 10 or outline_level == 0:  # 正文级别
+                        # 再次确认不是封面内容（双重保护）
+                        if page_number == 1:
+                            logger.info(f"跳过封面正文内容: {text_preview}... (page={page_number}, outline_level={outline_level})")
+                            continue
+                            
+                        # 应用正文格式
                         para.Range.Font.NameFarEast = "宋体"
                         para.Range.Font.Size = 12  # 小四
                         para.Range.Font.Bold = False
