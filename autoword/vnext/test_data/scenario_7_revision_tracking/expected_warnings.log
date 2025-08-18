@@ -1,0 +1,7 @@
+[2024-01-01 12:00:00] INFO: Revision tracking detected in document
+[2024-01-01 12:00:01] INFO: Applying revision strategy: accept
+[2024-01-01 12:00:02] INFO: Accepted 15 tracked changes
+[2024-01-01 12:00:03] INFO: Rejected 3 tracked changes  
+[2024-01-01 12:00:04] INFO: Preserved 2 comments as configured
+[2024-01-01 12:00:05] INFO: Revision metadata cleaned up
+[2024-01-01 12:00:06] INFO: Document ready for processing without revision conflicts

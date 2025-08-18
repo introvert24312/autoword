@@ -50,22 +50,21 @@ def get_config():
         print("❌ 请输入1或2")
     
     if choice == "1":
-        provider = "openai"
+        provider = "custom"
         model = "gpt-4"
-        print("\n🤖 OpenAI GPT-4 配置")
-        print("获取API密钥: https://platform.openai.com/api-keys")
+        base_url = "globalai.vip"
+        print("\n🤖 GPT-4 配置 (通过globalai.vip)")
+        print("使用预配置的API密钥")
+        api_key = "sk-NhjnJtqlZMx4PGTqvkGlH4POT82HHBrBnBbWOat99Bs5VZXi"
     else:
-        provider = "anthropic"
-        model = "claude-3-sonnet-20240229"
-        print("\n🧠 Anthropic Claude 配置")
-        print("获取API密钥: https://console.anthropic.com/")
+        provider = "custom"
+        model = "claude-3-7-sonnet-20250219"
+        base_url = "globalai.vip"
+        print("\n🧠 Claude 3.7 配置 (通过globalai.vip)")
+        print("使用预配置的API密钥")
+        api_key = "sk-3w1JFbWUq7tKjpLlopdkISQ9F6fpLhHx5viD0frh43ESE9Io"
     
-    print()
-    api_key = input("请输入API密钥: ").strip()
-    
-    if not api_key:
-        print("❌ API密钥不能为空")
-        return None
+    print(f"✅ 已配置 {model} 模型")
     
     # 创建配置
     config = {
@@ -73,6 +72,7 @@ def get_config():
             "provider": provider,
             "model": model,
             "api_key": api_key,
+            "base_url": base_url,
             "temperature": 0.1,
             "max_tokens": 4000
         },
@@ -194,17 +194,19 @@ def process_document(config: dict, input_file: str, user_intent: str):
     
     try:
         print("📦 正在加载AutoWord...")
-        from autoword.vnext import VNextPipeline
-        from autoword.vnext.core import VNextConfig, LLMConfig
+        from autoword.vnext import VNextPipeline, VNextConfig, LLMConfig
         
         print("⚙️ 正在配置系统...")
-        llm_config = LLMConfig(**config["llm"])
-        vnext_config = VNextConfig(
-            llm=llm_config,
-            localization=config.get("localization", {}),
-            validation=config.get("validation", {}),
-            audit=config.get("audit", {})
+        llm_data = config["llm"]
+        llm_config = LLMConfig(
+            provider=llm_data["provider"],
+            model=llm_data["model"],
+            api_key=llm_data["api_key"],
+            base_url=llm_data["base_url"],
+            temperature=llm_data["temperature"],
+            max_tokens=llm_data["max_tokens"]
         )
+        vnext_config = VNextConfig(llm=llm_config)
         
         pipeline = VNextPipeline(vnext_config)
         

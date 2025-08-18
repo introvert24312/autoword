@@ -1,335 +1,312 @@
 # AutoWord vNext Deployment Guide
 
+This document provides comprehensive guidance for deploying the AutoWord vNext pipeline in production environments.
+
 ## Overview
 
-This guide covers the complete deployment process for AutoWord vNext pipeline, including system requirements, installation steps, configuration, and verification procedures.
+AutoWord vNext uses a structured deployment system that packages all components into a complete, self-contained distribution. The deployment system includes:
 
-## System Requirements
+- **Core Pipeline**: All five modules (Extractor, Planner, Executor, Validator, Auditor)
+- **Configuration System**: Comprehensive configuration files for all aspects
+- **Schema Validation**: JSON schemas with documentation
+- **Test Data**: All 7 DoD validation scenarios
+- **Documentation**: Complete user and technical documentation
+- **Deployment Tools**: Scripts for packaging, verification, and installation
 
-### Operating System
-- **Windows 10/11** (required for Word COM automation)
-- **Windows Server 2016+** (for server deployments)
+## Deployment Architecture
 
-### Software Dependencies
-- **Microsoft Word 2016+** (required for COM automation)
-- **Python 3.8+** (recommended: Python 3.10+)
-- **pip** (Python package manager)
+```
+autoword-vnext/
+├── autoword/vnext/              # Core pipeline modules
+│   ├── extractor/               # DOCX to JSON extraction
+│   ├── planner/                 # LLM-based plan generation
+│   ├── executor/                # Atomic operation execution
+│   ├── validator/               # Document validation
+│   ├── auditor/                 # Audit trail generation
+│   ├── config/                  # Configuration files
+│   └── schemas/                 # JSON schema definitions
+├── test_data/                   # DoD validation scenarios
+├── docs/                        # Documentation
+├── run_vnext.py                 # Cross-platform entry point
+├── run_vnext.bat               # Windows launcher
+├── run_vnext.sh                # Unix launcher
+├── INSTALLATION.md             # Installation guide
+├── DEPLOYMENT_MANIFEST.json    # Package manifest
+└── requirements-deployment.txt  # Production dependencies
+```
 
-### Hardware Requirements
-- **RAM**: Minimum 4GB, recommended 8GB+
-- **Storage**: 500MB for installation, additional space for audit trails
-- **CPU**: Modern multi-core processor recommended for large documents
+## Deployment Process
 
-## Installation Methods
+### 1. Create Deployment Package
 
-### Method 1: Package Installation (Recommended)
+Use the enhanced deployment script:
 
-1. **Download Package**
-   ```bash
-   # Extract the autoword-vnext package
-   unzip autoword-vnext-1.0.0.zip
-   cd autoword-vnext
-   ```
+```bash
+# Create complete deployment package
+python deploy.py --target dist/autoword-vnext
 
-2. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+# Create package without test data (smaller)
+python deploy.py --target dist/autoword-vnext --no-test-data
 
-3. **Verify Installation**
-   ```bash
-   python run_vnext.py --version
-   ```
+# Verify existing package
+python deploy.py --verify-only --target dist/autoword-vnext
+```
 
-### Method 2: Source Installation
+### 2. Verify Package Integrity
 
-1. **Clone Repository**
-   ```bash
-   git clone <repository-url>
-   cd autoword/vnext
-   ```
+Run comprehensive verification:
 
-2. **Create Package**
-   ```bash
-   python setup.py --target dist/vnext-deployment
-   ```
+```bash
+# Verify deployment package
+python verify_deployment.py --package-dir dist/autoword-vnext
 
-3. **Install Package**
-   ```bash
-   cd dist/vnext-deployment
-   pip install -r requirements.txt
-   ```
+# Quick verification (summary only)
+python verify_deployment.py --package-dir dist/autoword-vnext --quiet
+```
 
-## Configuration
+### 3. Distribution
 
-### 1. Localization Settings
+The deployment process creates:
+- **Package Directory**: Complete deployment ready for installation
+- **ZIP Archive**: Compressed distribution file with timestamp
+- **Manifest**: Detailed package contents and verification info
 
-Edit `autoword/vnext/config/localization.json`:
+## Configuration Management
 
+### Configuration Files
+
+| File | Purpose | Customization |
+|------|---------|---------------|
+| `localization.json` | Style aliases and font fallbacks | Language-specific mappings |
+| `pipeline.json` | Pipeline execution settings | Timeouts, directories, features |
+| `validation_rules.json` | Document validation rules | Style specs, assertions |
+| `deployment.json` | Deployment configuration | System requirements, installation |
+| `example-config.json` | Runtime configuration template | User-specific settings |
+
+### Configuration Hierarchy
+
+1. **System Defaults**: Built-in configuration in code
+2. **Package Defaults**: Configuration files in package
+3. **User Configuration**: Custom configuration files
+4. **Runtime Parameters**: Command-line arguments
+
+### Customization Examples
+
+#### Custom Font Fallbacks
 ```json
 {
-  "style_aliases": {
-    "Heading 1": "标题 1",
-    "Normal": "正文"
-  },
   "font_fallbacks": {
-    "楷体": ["楷体", "楷体_GB2312", "STKaiti"]
+    "CustomFont": ["CustomFont", "Fallback1", "Fallback2"],
+    "楷体": ["楷体", "楷体_GB2312", "STKaiti", "KaiTi"]
   }
 }
 ```
 
-### 2. Pipeline Settings
-
-Edit `autoword/vnext/config/pipeline.json`:
-
+#### Pipeline Timeouts
 ```json
 {
   "pipeline_settings": {
-    "max_execution_time_seconds": 300,
-    "enable_rollback": true
+    "max_execution_time_seconds": 600,
+    "com_timeout_seconds": 60
   }
 }
 ```
 
-### 3. Validation Rules
-
-Edit `autoword/vnext/config/validation_rules.json`:
-
+#### Validation Rules
 ```json
 {
-  "chapter_assertions": {
-    "forbidden_level_1_headings": ["摘要", "参考文献"]
+  "style_assertions": {
+    "Heading 1": {
+      "font_east_asian": "CustomFont",
+      "font_size_pt": 14,
+      "font_bold": true
+    }
   }
 }
 ```
 
-## Deployment Scenarios
+## Environment-Specific Deployment
 
-### Scenario 1: Single User Desktop
-
-**Use Case**: Individual user processing documents locally
-
-**Setup**:
-1. Install on user's Windows machine
-2. Configure for local Word installation
-3. Set up personal audit directory
-
-**Command**:
-```bash
-python run_vnext.py process document.docx "删除摘要章节"
-```
-
-### Scenario 2: Server Deployment
-
-**Use Case**: Centralized document processing service
-
-**Setup**:
-1. Install on Windows Server with Word
-2. Configure service account with Word permissions
-3. Set up network audit storage
-4. Implement queue-based processing
-
-**Considerations**:
-- Word COM requires interactive desktop session
-- Service account needs Word licensing
-- Network storage for audit trails
-
-### Scenario 3: Batch Processing
-
-**Use Case**: Processing multiple documents automatically
-
-**Setup**:
-1. Create batch processing scripts
-2. Configure input/output directories
-3. Set up error handling and logging
-
-**Example Script**:
-```python
-from autoword.vnext.pipeline import VNextPipeline
-
-pipeline = VNextPipeline()
-for docx_file in input_directory.glob("*.docx"):
-    result = pipeline.process_document(docx_file, user_intent)
-    if result.status != "SUCCESS":
-        log_error(docx_file, result.error)
-```
-
-## Verification
-
-### 1. System Verification
+### Development Environment
 
 ```bash
-# Check Python version
-python --version
+# Install with development dependencies
+pip install -r requirements-deployment.txt[dev]
 
-# Check Word COM availability
-python -c "import win32com.client; word = win32com.client.Dispatch('Word.Application'); print('Word COM available')"
-
-# Check package integrity
-python run_vnext.py --verify
+# Run with verbose logging
+python run_vnext.py --verbose --config dev-config.json document.docx "intent"
 ```
 
-### 2. Functional Testing
+### Production Environment
 
 ```bash
-# Run test scenarios
-python run_vnext.py test --scenario all
+# Install production dependencies only
+pip install -r requirements-deployment.txt
 
-# Process sample document
-python run_vnext.py process test_data/scenario_1_normal_paper/input.docx "删除摘要章节"
+# Run with production configuration
+python run_vnext.py --config prod-config.json document.docx "intent"
 ```
 
-### 3. Performance Testing
+### Enterprise Environment
 
 ```bash
-# Test with large document
-python run_vnext.py process large_document.docx "标准化格式" --benchmark
-
-# Memory usage monitoring
-python -m memory_profiler run_vnext.py process document.docx "用户意图"
+# Custom configuration for enterprise
+python run_vnext.py --config enterprise-config.json \
+                    --audit-dir /shared/audit \
+                    --log-file /logs/vnext.log \
+                    document.docx "intent"
 ```
+
+## Monitoring and Logging
+
+### Log Files
+
+- **vnext-pipeline.log**: Main pipeline execution log
+- **warnings.log**: Warnings and NOOP operations
+- **audit_runs/*/result.status.txt**: Per-execution status
+
+### Monitoring Levels
+
+- **Basic**: Essential operations and errors
+- **Detailed**: Full operation tracking and performance metrics
+- **Debug**: Comprehensive debugging information
+
+### Performance Metrics
+
+- Processing time per document
+- Memory usage patterns
+- Operation success/failure rates
+- Font fallback frequency
 
 ## Security Considerations
 
-### 1. File System Permissions
+### Access Control
 
-- **Input Directory**: Read access for service account
-- **Output Directory**: Write access for processed documents
-- **Audit Directory**: Write access for audit trails
-- **Temp Directory**: Full access for temporary files
+- **File System**: Secure audit directory permissions
+- **COM Automation**: Proper Word application isolation
+- **Configuration**: Protect sensitive configuration files
 
-### 2. Word COM Security
+### Data Protection
 
-- **Macro Security**: Disable macros in Word settings
-- **Protected View**: Configure for automated processing
-- **File Blocking**: Allow DOCX files, block potentially dangerous formats
+- **Audit Trails**: Complete before/after snapshots
+- **Rollback**: Automatic rollback on failures
+- **Validation**: Strict schema validation prevents malicious plans
 
-### 3. Network Security
+### Network Security
 
-- **Firewall**: Allow Word COM communication
-- **Antivirus**: Exclude processing directories from real-time scanning
-- **Access Control**: Restrict access to processing service
-
-## Monitoring and Maintenance
-
-### 1. Log Monitoring
-
-Monitor these log files:
-- `audit_runs/*/warnings.log` - Processing warnings
-- `audit_runs/*/result.status.txt` - Processing results
-- System event logs for COM errors
-
-### 2. Performance Monitoring
-
-Track these metrics:
-- Processing time per document
-- Memory usage during processing
-- Success/failure rates
-- Audit trail storage usage
-
-### 3. Maintenance Tasks
-
-**Daily**:
-- Check processing logs for errors
-- Verify audit trail storage space
-- Monitor system resource usage
-
-**Weekly**:
-- Clean up old audit trails (if configured)
-- Update font availability checks
-- Review processing statistics
-
-**Monthly**:
-- Update configuration files if needed
-- Review and update validation rules
-- Performance optimization review
+- **LLM Integration**: Secure API communication
+- **No Data Leakage**: Only structure data sent to LLM, never content
 
 ## Troubleshooting
 
-### Common Issues
+### Common Deployment Issues
 
-**Issue**: "Word COM not available"
-**Solution**: 
-- Install Microsoft Word
-- Register Word COM components: `regsvr32 "C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE" /regserver`
-
-**Issue**: "Font not found" warnings
-**Solution**:
-- Install required fonts
-- Update font fallback configuration
-- Check font licensing
-
-**Issue**: "Processing timeout"
-**Solution**:
-- Increase timeout in pipeline.json
-- Check document complexity
-- Verify system resources
-
-**Issue**: "Validation failed"
-**Solution**:
-- Review validation assertions
-- Check document structure
-- Verify style specifications
-
-### Debug Mode
-
-Enable debug logging:
+#### Package Verification Fails
 ```bash
-python run_vnext.py process document.docx "用户意图" --debug --verbose
+# Check specific issues
+python verify_deployment.py --package-dir dist/autoword-vnext
+
+# Common fixes:
+# - Ensure all required files are present
+# - Validate JSON configuration files
+# - Check Python dependencies
 ```
 
-### Support Information
+#### COM Automation Issues
+```bash
+# Verify Word installation
+# Check COM registration
+# Ensure proper permissions
+```
 
-For technical support:
-1. Collect system information
-2. Gather processing logs
-3. Provide sample document (if possible)
-4. Include error messages and stack traces
+#### Font Fallback Problems
+```bash
+# Install required fonts
+# Update fallback chains in localization.json
+# Check font availability on target system
+```
 
-## Upgrade Procedures
+### Diagnostic Commands
+
+```bash
+# Test basic functionality
+python run_vnext.py --help
+
+# Test with sample scenario
+python run_vnext.py test_data/scenario_1_normal_paper/input.docx \
+                    "$(cat test_data/scenario_1_normal_paper/user_intent.txt)"
+
+# Verify configuration
+python -c "import json; print(json.load(open('autoword/vnext/config/pipeline.json')))"
+```
+
+## Maintenance
+
+### Regular Tasks
+
+1. **Update Dependencies**: Keep Python packages current
+2. **Validate Configurations**: Ensure JSON files remain valid
+3. **Test Scenarios**: Run DoD validation scenarios regularly
+4. **Monitor Logs**: Review audit trails and error patterns
+5. **Performance Review**: Analyze processing metrics
 
 ### Version Updates
 
-1. **Backup Current Installation**
-   ```bash
-   cp -r autoword-vnext autoword-vnext-backup
-   ```
+1. **Backup Current**: Save current configuration and customizations
+2. **Deploy New Version**: Use deployment scripts
+3. **Migrate Configuration**: Update configuration files as needed
+4. **Test Thoroughly**: Run all validation scenarios
+5. **Monitor Rollout**: Watch for issues in production
 
-2. **Install New Version**
-   ```bash
-   # Extract new package
-   # Copy configuration files from backup
-   # Test with sample documents
-   ```
+## Support and Documentation
 
-3. **Verify Upgrade**
-   ```bash
-   python run_vnext.py --version
-   python run_vnext.py test --scenario basic
-   ```
+### Documentation Files
 
-### Configuration Migration
+- **INSTALLATION.md**: Step-by-step installation guide
+- **KNOWN-ISSUES.md**: Known limitations and workarounds
+- **schemas/*.md**: JSON schema documentation
+- **test_data/README.md**: Test scenario documentation
 
-When upgrading, preserve these files:
-- `config/localization.json`
-- `config/pipeline.json` 
-- `config/validation_rules.json`
-- Custom test scenarios
+### Getting Help
 
-## Performance Optimization
+1. Check KNOWN-ISSUES.md for documented problems
+2. Review audit trails and log files
+3. Test with provided scenarios
+4. Verify configuration files
+5. Check system requirements
 
-### System Optimization
+## Deployment Checklist
 
-1. **Disable unnecessary Word add-ins**
-2. **Increase virtual memory if processing large documents**
-3. **Use SSD storage for temp and audit directories**
-4. **Close other applications during batch processing**
+### Pre-Deployment
 
-### Configuration Optimization
+- [ ] System requirements verified
+- [ ] Python 3.8+ installed
+- [ ] Microsoft Word installed and tested
+- [ ] Dependencies installed
+- [ ] Configuration customized
 
-1. **Adjust timeout values based on document complexity**
-2. **Configure appropriate audit retention policies**
-3. **Optimize validation rules for specific document types**
-4. **Use efficient font fallback chains**
+### Deployment
 
-This deployment guide ensures successful installation and operation of AutoWord vNext in various environments.
+- [ ] Package created with deploy.py
+- [ ] Package verified with verify_deployment.py
+- [ ] Distribution archive created
+- [ ] Installation guide reviewed
+- [ ] Test scenarios validated
+
+### Post-Deployment
+
+- [ ] Basic functionality tested
+- [ ] Sample documents processed
+- [ ] Monitoring configured
+- [ ] Audit trails verified
+- [ ] Performance baseline established
+
+### Production Readiness
+
+- [ ] All DoD scenarios pass
+- [ ] Performance meets requirements
+- [ ] Error handling tested
+- [ ] Rollback procedures verified
+- [ ] Documentation complete
+
+This deployment guide ensures a robust, maintainable AutoWord vNext installation that meets enterprise requirements while providing comprehensive monitoring and troubleshooting capabilities.

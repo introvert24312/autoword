@@ -1,0 +1,1 @@
+Remove the "摘要" and "参考文献" sections from this document. The document contains duplicate headings at different levels, so make sure to target the correct occurrence using occurrence_index when needed.

@@ -1,0 +1,122 @@
+{
+  "deployment_info": {
+    "package_name": "autoword-vnext",
+    "version": "1.0.0",
+    "description": "AutoWord vNext Pipeline - Structured Document Processing",
+    "author": "AutoWord Development Team",
+    "license": "MIT",
+    "python_requirements": ">=3.8",
+    "created_date": "2024-01-01"
+  },
+  "system_requirements": {
+    "operating_systems": ["Windows 10+", "Windows Server 2016+"],
+    "microsoft_word": {
+      "minimum_version": "2016",
+      "recommended_version": "2019+",
+      "com_automation": "required",
+      "macro_security": "medium_or_lower"
+    },
+    "python_dependencies": [
+      "pydantic>=2.0.0",
+      "pywin32>=300",
+      "jsonschema>=4.0.0",
+      "pathlib>=1.0.0",
+      "typing-extensions>=4.0.0"
+    ],
+    "memory_requirements": {
+      "minimum_mb": 512,
+      "recommended_mb": 1024,
+      "large_documents_mb": 2048
+    },
+    "disk_space_mb": 100
+  },
+  "installation": {
+    "package_structure": {
+      "autoword/vnext/": "Core pipeline modules",
+      "config/": "Configuration files",
+      "schemas/": "JSON schema definitions",
+      "test_data/": "DoD validation scenarios",
+      "docs/": "Documentation files"
+    },
+    "entry_points": [
+      "run_vnext.py",
+      "run_vnext.bat",
+      "run_vnext.sh"
+    ],
+    "configuration_files": [
+      "config/localization.json",
+      "config/pipeline.json", 
+      "config/validation_rules.json",
+      "config/example-config.json"
+    ]
+  },
+  "deployment_checklist": [
+    "Verify Python 3.8+ installation",
+    "Install Microsoft Word with COM automation enabled",
+    "Install required Python dependencies",
+    "Copy package files to target directory",
+    "Verify configuration files are present",
+    "Test with scenario_1_normal_paper",
+    "Validate all 7 DoD scenarios",
+    "Configure logging and audit directories",
+    "Set up monitoring if required"
+  ],
+  "configuration_guide": {
+    "localization.json": {
+      "purpose": "Style aliases and font fallback tables",
+      "customization": "Add language-specific style mappings and font chains"
+    },
+    "pipeline.json": {
+      "purpose": "Pipeline execution settings",
+      "customization": "Adjust timeouts, directories, and feature flags"
+    },
+    "validation_rules.json": {
+      "purpose": "Document validation assertions",
+      "customization": "Modify style specifications and validation criteria"
+    },
+    "example-config.json": {
+      "purpose": "Runtime configuration template",
+      "customization": "Copy and modify for specific deployment needs"
+    }
+  },
+  "monitoring_and_logging": {
+    "log_files": [
+      "vnext-pipeline.log",
+      "warnings.log",
+      "audit_runs/*/result.status.txt"
+    ],
+    "monitoring_levels": ["basic", "detailed", "debug"],
+    "performance_metrics": [
+      "processing_time_seconds",
+      "memory_usage_mb",
+      "document_size_mb",
+      "operation_count"
+    ]
+  },
+  "troubleshooting": {
+    "common_issues": [
+      {
+        "issue": "COM automation fails",
+        "solution": "Ensure Word is installed and COM is enabled"
+      },
+      {
+        "issue": "Font fallback warnings",
+        "solution": "Install required fonts or update fallback chains"
+      },
+      {
+        "issue": "Schema validation errors",
+        "solution": "Verify JSON schema files are present and valid"
+      },
+      {
+        "issue": "Memory errors with large documents",
+        "solution": "Increase memory limits or process in smaller sections"
+      }
+    ],
+    "support_resources": [
+      "KNOWN-ISSUES.md",
+      "schemas/*.md documentation",
+      "test_data/ scenario examples",
+      "logs and audit trails"
+    ]
+  }
+}

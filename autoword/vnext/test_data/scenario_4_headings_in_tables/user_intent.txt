@@ -1,0 +1,1 @@
+Remove the "摘要" and "参考文献" sections from this document. Note that some headings may be located within table cells, so the system should properly identify and delete the entire sections including the tables containing the headings.

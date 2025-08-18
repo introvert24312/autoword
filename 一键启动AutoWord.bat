@@ -30,20 +30,24 @@ echo 📋 选择启动方式:
 echo.
 echo 1. 🖥️  启动简化版GUI (推荐)
 echo 2. 💻 启动命令行版本
-echo 3. 🧪 运行性能测试
-echo 4. ⚙️  重新配置
-echo 5. 📚 查看文档
-echo 6. ❌ 退出
+echo 3. 🚀 预配置启动器 (已配置API)
+echo 4. 🧪 运行性能测试
+echo 5. 🔍 最终系统测试
+echo 6. ⚙️  重新配置
+echo 7. 📚 查看文档
+echo 8. ❌ 退出
 echo.
 
-set /p choice="请选择 (1-6): "
+set /p choice="请选择 (1-8): "
 
 if "%choice%"=="1" goto start_gui
 if "%choice%"=="2" goto start_cli
-if "%choice%"=="3" goto run_test
-if "%choice%"=="4" goto reconfig
-if "%choice%"=="5" goto show_docs
-if "%choice%"=="6" goto exit
+if "%choice%"=="3" goto start_preconfigured
+if "%choice%"=="4" goto run_test
+if "%choice%"=="5" goto run_final_test
+if "%choice%"=="6" goto reconfig
+if "%choice%"=="7" goto show_docs
+if "%choice%"=="8" goto exit
 goto invalid_choice
 
 :start_gui
@@ -62,6 +66,18 @@ goto end
 echo.
 echo 💻 启动命令行版本...
 python "命令行版本.py"
+goto end
+
+:start_preconfigured
+echo.
+echo 🚀 启动预配置版本...
+python "预配置启动器.py"
+goto end
+
+:run_final_test
+echo.
+echo 🔍 运行最终系统测试...
+python "最终测试.py"
 goto end
 
 :run_test
@@ -89,7 +105,7 @@ goto end
 
 :invalid_choice
 echo.
-echo ❌ 无效选择，请输入1-6
+echo ❌ 无效选择，请输入1-8
 echo.
 pause
 goto start

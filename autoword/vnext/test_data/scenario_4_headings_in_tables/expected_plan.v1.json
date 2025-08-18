@@ -1,0 +1,22 @@
+{
+  "schema_version": "plan.v1",
+  "ops": [
+    {
+      "op": "delete_section_by_heading",
+      "heading_text": "摘要",
+      "level": 1,
+      "match": "EXACT",
+      "case_sensitive": false
+    },
+    {
+      "op": "delete_section_by_heading",
+      "heading_text": "参考文献", 
+      "level": 1,
+      "match": "EXACT",
+      "case_sensitive": false
+    },
+    {
+      "op": "update_toc"
+    }
+  ]
+}

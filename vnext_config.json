@@ -1,19 +1,60 @@
 {
+  "llm": {
+    "provider": "openai",
+    "model": "gpt-4",
+    "api_key": "sk-NhjnJtqlZMx4PGTqvkGlH4POT82HHBrBnBbWOat99Bs5VZXi",
+    "temperature": 0.1,
+    "max_tokens": 4000
+  },
+  "llm_backup": {
+    "provider": "anthropic",
+    "model": "claude-3-sonnet-20240229",
+    "api_key": "sk-3w1JFbWUq7tKjpLlopdkISQ9F6fpLhHx5viD0frh43ESE9Io",
+    "temperature": 0.1,
+    "max_tokens": 4000
+  },
   "localization": {
-    "language": "auto",
-    "style_aliases": {},
-    "font_fallbacks": {}
+    "language": "zh-CN",
+    "style_aliases": {
+      "Heading 1": "标题 1",
+      "Heading 2": "标题 2",
+      "Heading 3": "标题 3",
+      "Normal": "正文",
+      "Title": "标题"
+    },
+    "font_fallbacks": {
+      "楷体": [
+        "楷体",
+        "楷体_GB2312",
+        "STKaiti"
+      ],
+      "宋体": [
+        "宋体",
+        "SimSun",
+        "NSimSun"
+      ],
+      "黑体": [
+        "黑体",
+        "SimHei",
+        "Microsoft YaHei"
+      ]
+    }
   },
   "validation": {
-    "strict_mode": false,
-    "rollback_on_failure": false,
+    "strict_mode": true,
+    "rollback_on_failure": true,
     "chapter_assertions": true,
-    "style_assertions": false,
+    "style_assertions": true,
     "toc_assertions": true
   },
   "audit": {
     "save_snapshots": true,
     "generate_diff_reports": true,
     "output_directory": "./audit_output"
+  },
+  "performance": {
+    "visible_word": false,
+    "enable_monitoring": true,
+    "memory_limit_mb": 2048
   }
 }

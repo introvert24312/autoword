@@ -1,0 +1,30 @@
+# AutoWord vNext Deployment Requirements
+# Core dependencies for production deployment
+
+# Data validation and modeling
+pydantic>=2.0.0,<3.0.0
+
+# Windows COM automation (Word integration)
+pywin32>=300
+
+# JSON schema validation
+jsonschema>=4.0.0,<5.0.0
+
+# Type hints support for older Python versions
+typing-extensions>=4.0.0
+
+# Standard library backports (if needed)
+pathlib>=1.0.0; python_version<"3.4"
+
+# Optional: Enhanced logging and monitoring
+colorama>=0.4.0  # Cross-platform colored terminal output
+psutil>=5.8.0    # System and process monitoring
+
+# Development and testing (optional)
+pytest>=7.0.0; extra == "dev"
+pytest-cov>=4.0.0; extra == "dev"
+black>=22.0.0; extra == "dev"
+mypy>=1.0.0; extra == "dev"
+
+# Documentation generation (optional)
+markdown>=3.4.0; extra == "docs"

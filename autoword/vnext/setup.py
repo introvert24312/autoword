@@ -262,13 +262,17 @@ def main():
     """Main packaging function."""
     import argparse
     
-    parser = argparse.ArgumentParser(description="AutoWord vNext Packager")
+    parser = argparse.ArgumentParser(description="AutoWord vNext Packager (Legacy)")
     parser.add_argument("--target", default="dist/autoword-vnext", 
                        help="Target directory for package")
     parser.add_argument("--verify-only", action="store_true",
                        help="Only verify existing package")
     
     args = parser.parse_args()
+    
+    print("Note: This is the legacy setup script.")
+    print("For enhanced deployment features, use: python deploy.py")
+    print()
     
     packager = VNextPackager(args.target)
     

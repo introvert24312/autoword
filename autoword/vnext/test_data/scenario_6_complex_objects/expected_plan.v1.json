@@ -1,0 +1,52 @@
+{
+  "schema_version": "plan.v1",
+  "ops": [
+    {
+      "op": "delete_section_by_heading",
+      "heading_text": "摘要",
+      "level": 1,
+      "match": "EXACT",
+      "case_sensitive": false
+    },
+    {
+      "op": "delete_section_by_heading",
+      "heading_text": "参考文献",
+      "level": 1,
+      "match": "EXACT", 
+      "case_sensitive": false
+    },
+    {
+      "op": "set_style_rule",
+      "target_style": "Heading 1",
+      "font_east_asian": "楷体",
+      "font_latin": "Times New Roman",
+      "font_size_pt": 12,
+      "font_bold": true,
+      "line_spacing_mode": "MULTIPLE",
+      "line_spacing_value": 2.0
+    },
+    {
+      "op": "set_style_rule",
+      "target_style": "Heading 2",
+      "font_east_asian": "宋体",
+      "font_latin": "Times New Roman", 
+      "font_size_pt": 12,
+      "font_bold": true,
+      "line_spacing_mode": "MULTIPLE",
+      "line_spacing_value": 2.0
+    },
+    {
+      "op": "set_style_rule",
+      "target_style": "Normal",
+      "font_east_asian": "宋体",
+      "font_latin": "Times New Roman",
+      "font_size_pt": 12,
+      "font_bold": false,
+      "line_spacing_mode": "MULTIPLE",
+      "line_spacing_value": 2.0
+    },
+    {
+      "op": "update_toc"
+    }
+  ]
+}

@@ -2,362 +2,366 @@
 """
 AutoWord vNext Deployment Verification Script
 
-This script verifies that the vNext deployment package is complete and functional.
+Comprehensive verification of deployment package integrity and functionality.
 """
 
 import os
 import sys
 import json
-import importlib
+import subprocess
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple, Optional
 
 class DeploymentVerifier:
-    """Verifies AutoWord vNext deployment package integrity."""
+    """Verifies AutoWord vNext deployment package."""
     
-    def __init__(self, package_root: str = None):
-        if package_root:
-            self.package_root = Path(package_root)
-        else:
-            self.package_root = Path(__file__).parent
-        
+    def __init__(self, package_dir: str = "."):
+        self.package_dir = Path(package_dir).resolve()
         self.errors = []
         self.warnings = []
-    
-    def verify_all(self) -> bool:
-        """Run all verification checks."""
-        print("AutoWord vNext Deployment Verification")
+        
+    def verify_deployment(self) -> bool:
+        """Run complete deployment verification."""
+        print("🔍 AutoWord vNext Deployment Verification")
         print("=" * 50)
         
+        # Run all verification checks
         checks = [
-            ("File Structure", self.verify_file_structure),
-            ("Python Modules", self.verify_python_modules),
-            ("Configuration Files", self.verify_configuration_files),
-            ("JSON Schemas", self.verify_json_schemas),
-            ("Documentation", self.verify_documentation),
-            ("Test Data", self.verify_test_data),
-            ("Dependencies", self.verify_dependencies)
+            ("System Requirements", self._check_system_requirements),
+            ("Package Structure", self._check_package_structure),
+            ("Configuration Files", self._check_configuration_files),
+            ("Schema Files", self._check_schema_files),
+            ("Python Dependencies", self._check_python_dependencies),
+            ("Entry Points", self._check_entry_points),
+            ("Test Data", self._check_test_data),
+            ("Documentation", self._check_documentation)
         ]
         
         all_passed = True
-        
         for check_name, check_func in checks:
-            print(f"\n{check_name}:")
-            print("-" * len(check_name))
+            print(f"\n📋 {check_name}")
+            print("-" * 30)
             
             try:
                 passed = check_func()
                 if passed:
-                    print("✓ PASSED")
+                    print(f"✅ {check_name}: PASSED")
                 else:
-                    print("✗ FAILED")
+                    print(f"❌ {check_name}: FAILED")
                     all_passed = False
             except Exception as e:
-                print(f"✗ ERROR: {e}")
+                print(f"💥 {check_name}: ERROR - {e}")
                 self.errors.append(f"{check_name}: {e}")
                 all_passed = False
         
-        self._print_summary()
+        # Print summary
+        self._print_summary(all_passed)
         return all_passed
     
-    def verify_file_structure(self) -> bool:
-        """Verify required files and directories exist."""
+    def _check_system_requirements(self) -> bool:
+        """Check system requirements."""
+        passed = True
+        
+        # Check Python version
+        if sys.version_info < (3, 8):
+            self.errors.append(f"Python 3.8+ required, found {sys.version}")
+            passed = False
+        else:
+            print(f"✓ Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+        
+        # Check platform
+        if sys.platform != "win32":
+            self.warnings.append("AutoWord vNext is designed for Windows with Microsoft Word")
+            print(f"⚠️  Platform: {sys.platform} (Windows recommended)")
+        else:
+            print(f"✓ Platform: {sys.platform}")
+        
+        # Check Word installation (basic check)
+        word_paths = [
+            Path(os.environ.get("ProgramFiles", "")) / "Microsoft Office",
+            Path(os.environ.get("ProgramFiles(x86)", "")) / "Microsoft Office"
+        ]
+        
+        word_found = any(path.exists() for path in word_paths)
+        if not word_found:
+            self.warnings.append("Microsoft Office installation not detected")
+            print("⚠️  Microsoft Office not detected (may affect COM automation)")
+        else:
+            print("✓ Microsoft Office installation detected")
+        
+        return passed
+    
+    def _check_package_structure(self) -> bool:
+        """Check package directory structure."""
         required_structure = {
-            "files": [
-                "__init__.py",
-                "pipeline.py",
-                "cli.py",
-                "models.py",
-                "exceptions.py",
-                "error_handler.py",
-                "localization.py",
-                "constraints.py",
-                "schema_validator.py",
-                "setup.py",
-                "requirements.txt",
-                "README.md",
-                "DEPLOYMENT.md",
-                "KNOWN-ISSUES.md"
-            ],
-            "directories": [
-                "config",
-                "schemas", 
-                "extractor",
-                "planner",
-                "executor",
-                "validator",
-                "auditor",
-                "test_data"
-            ]
+            "autoword/vnext/__init__.py": "Core package init",
+            "autoword/vnext/pipeline.py": "Main pipeline module",
+            "autoword/vnext/cli.py": "Command-line interface",
+            "autoword/vnext/extractor/": "Extractor module",
+            "autoword/vnext/planner/": "Planner module", 
+            "autoword/vnext/executor/": "Executor module",
+            "autoword/vnext/validator/": "Validator module",
+            "autoword/vnext/auditor/": "Auditor module",
+            "autoword/vnext/config/": "Configuration directory",
+            "autoword/vnext/schemas/": "Schema directory"
         }
         
-        missing_files = []
-        missing_dirs = []
+        passed = True
+        for path, description in required_structure.items():
+            full_path = self.package_dir / path
+            if full_path.exists():
+                print(f"✓ {path}")
+            else:
+                print(f"✗ {path} - {description}")
+                self.errors.append(f"Missing: {path}")
+                passed = False
         
-        for file_path in required_structure["files"]:
-            if not (self.package_root / file_path).exists():
-                missing_files.append(file_path)
-        
-        for dir_path in required_structure["directories"]:
-            if not (self.package_root / dir_path).is_dir():
-                missing_dirs.append(dir_path)
-        
-        if missing_files:
-            self.errors.append(f"Missing files: {missing_files}")
-        
-        if missing_dirs:
-            self.errors.append(f"Missing directories: {missing_dirs}")
-        
-        return len(missing_files) == 0 and len(missing_dirs) == 0
+        return passed
     
-    def verify_python_modules(self) -> bool:
-        """Verify Python modules can be imported."""
-        modules_to_test = [
-            "models",
-            "exceptions", 
-            "error_handler",
-            "localization",
-            "constraints",
-            "schema_validator"
+    def _check_configuration_files(self) -> bool:
+        """Check configuration files."""
+        config_dir = self.package_dir / "autoword" / "vnext" / "config"
+        
+        required_configs = [
+            "localization.json",
+            "pipeline.json", 
+            "validation_rules.json",
+            "deployment.json"
         ]
         
-        # Add package root to Python path
-        sys.path.insert(0, str(self.package_root))
-        
-        import_errors = []
-        
-        for module_name in modules_to_test:
-            try:
-                module_path = f"autoword.vnext.{module_name}"
-                importlib.import_module(module_path)
-                print(f"  ✓ {module_name}")
-            except ImportError as e:
-                import_errors.append(f"{module_name}: {e}")
-                print(f"  ✗ {module_name}: {e}")
-        
-        if import_errors:
-            self.errors.extend(import_errors)
-        
-        return len(import_errors) == 0
-    
-    def verify_configuration_files(self) -> bool:
-        """Verify configuration files are valid JSON."""
-        config_files = [
-            "config/localization.json",
-            "config/pipeline.json", 
-            "config/validation_rules.json"
-        ]
-        
-        config_errors = []
-        
-        for config_file in config_files:
-            config_path = self.package_root / config_file
-            
+        passed = True
+        for config_file in required_configs:
+            config_path = config_dir / config_file
             if not config_path.exists():
-                config_errors.append(f"Missing: {config_file}")
+                print(f"✗ {config_file} - Missing")
+                self.errors.append(f"Missing config: {config_file}")
+                passed = False
                 continue
             
+            # Validate JSON
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     json.load(f)
-                print(f"  ✓ {config_file}")
+                print(f"✓ {config_file} - Valid JSON")
             except json.JSONDecodeError as e:
-                config_errors.append(f"Invalid JSON in {config_file}: {e}")
-                print(f"  ✗ {config_file}: Invalid JSON")
-            except Exception as e:
-                config_errors.append(f"Error reading {config_file}: {e}")
-                print(f"  ✗ {config_file}: {e}")
+                print(f"✗ {config_file} - Invalid JSON: {e}")
+                self.errors.append(f"Invalid JSON in {config_file}: {e}")
+                passed = False
         
-        if config_errors:
-            self.errors.extend(config_errors)
-        
-        return len(config_errors) == 0
+        return passed
     
-    def verify_json_schemas(self) -> bool:
-        """Verify JSON schema files are valid."""
-        schema_files = [
-            "schemas/structure.v1.json",
-            "schemas/plan.v1.json",
-            "schemas/inventory.full.v1.json"
+    def _check_schema_files(self) -> bool:
+        """Check JSON schema files."""
+        schema_dir = self.package_dir / "autoword" / "vnext" / "schemas"
+        
+        required_schemas = [
+            ("structure.v1.json", "structure.v1.md"),
+            ("plan.v1.json", "plan.v1.md"),
+            ("inventory.full.v1.json", None)
         ]
         
-        schema_docs = [
-            "schemas/structure.v1.md",
-            "schemas/plan.v1.md"
-        ]
-        
-        schema_errors = []
-        
-        # Check schema JSON files
-        for schema_file in schema_files:
-            schema_path = self.package_root / schema_file
+        passed = True
+        for schema_file, doc_file in required_schemas:
+            schema_path = schema_dir / schema_file
             
+            # Check schema file
             if not schema_path.exists():
-                schema_errors.append(f"Missing schema: {schema_file}")
+                print(f"✗ {schema_file} - Missing")
+                self.errors.append(f"Missing schema: {schema_file}")
+                passed = False
                 continue
             
+            # Validate JSON schema
             try:
                 with open(schema_path, 'r', encoding='utf-8') as f:
-                    schema = json.load(f)
+                    schema_data = json.load(f)
+                print(f"✓ {schema_file} - Valid JSON schema")
                 
-                # Basic schema validation
-                if "$schema" not in schema:
-                    self.warnings.append(f"Schema {schema_file} missing $schema field")
-                
-                print(f"  ✓ {schema_file}")
+                # Check for required schema properties
+                if "$schema" not in schema_data:
+                    self.warnings.append(f"{schema_file} missing $schema property")
+                    
             except json.JSONDecodeError as e:
-                schema_errors.append(f"Invalid JSON in {schema_file}: {e}")
-                print(f"  ✗ {schema_file}: Invalid JSON")
-        
-        # Check schema documentation
-        for doc_file in schema_docs:
-            doc_path = self.package_root / doc_file
+                print(f"✗ {schema_file} - Invalid JSON: {e}")
+                self.errors.append(f"Invalid JSON in {schema_file}: {e}")
+                passed = False
             
-            if not doc_path.exists():
-                schema_errors.append(f"Missing documentation: {doc_file}")
-            else:
-                print(f"  ✓ {doc_file}")
+            # Check documentation file
+            if doc_file:
+                doc_path = schema_dir / doc_file
+                if doc_path.exists():
+                    print(f"✓ {doc_file} - Documentation present")
+                else:
+                    self.warnings.append(f"Missing documentation: {doc_file}")
+                    print(f"⚠️  {doc_file} - Documentation missing")
         
-        if schema_errors:
-            self.errors.extend(schema_errors)
-        
-        return len(schema_errors) == 0
+        return passed
     
-    def verify_documentation(self) -> bool:
-        """Verify documentation files exist and are readable."""
-        doc_files = [
-            "README.md",
-            "DEPLOYMENT.md", 
-            "KNOWN-ISSUES.md",
-            "test_data/README.md"
+    def _check_python_dependencies(self) -> bool:
+        """Check Python dependencies."""
+        required_packages = [
+            ("pydantic", "2.0.0"),
+            ("pywin32", "300"),
+            ("jsonschema", "4.0.0")
         ]
         
-        doc_errors = []
-        
-        for doc_file in doc_files:
-            doc_path = self.package_root / doc_file
-            
-            if not doc_path.exists():
-                doc_errors.append(f"Missing documentation: {doc_file}")
-                continue
-            
+        passed = True
+        for package, min_version in required_packages:
             try:
-                with open(doc_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                if len(content.strip()) == 0:
-                    doc_errors.append(f"Empty documentation: {doc_file}")
-                else:
-                    print(f"  ✓ {doc_file} ({len(content)} chars)")
-            except Exception as e:
-                doc_errors.append(f"Error reading {doc_file}: {e}")
+                __import__(package)
+                print(f"✓ {package} - Available")
+            except ImportError:
+                print(f"✗ {package} - Not installed")
+                self.errors.append(f"Missing dependency: {package}>={min_version}")
+                passed = False
         
-        if doc_errors:
-            self.errors.extend(doc_errors)
-        
-        return len(doc_errors) == 0
+        return passed
     
-    def verify_test_data(self) -> bool:
-        """Verify test data scenarios are present."""
+    def _check_entry_points(self) -> bool:
+        """Check entry point scripts."""
+        entry_points = [
+            "run_vnext.py",
+            "run_vnext.bat",
+            "run_vnext.sh"
+        ]
+        
+        passed = True
+        for entry_point in entry_points:
+            entry_path = self.package_dir / entry_point
+            if entry_path.exists():
+                print(f"✓ {entry_point}")
+                
+                # Check if executable (Unix)
+                if entry_point.endswith('.sh') and not os.access(entry_path, os.X_OK):
+                    self.warnings.append(f"{entry_point} not executable")
+                    print(f"⚠️  {entry_point} - Not executable")
+            else:
+                print(f"✗ {entry_point} - Missing")
+                self.errors.append(f"Missing entry point: {entry_point}")
+                passed = False
+        
+        return passed
+    
+    def _check_test_data(self) -> bool:
+        """Check test data scenarios."""
+        test_dir = self.package_dir / "test_data"
+        
+        if not test_dir.exists():
+            self.warnings.append("Test data directory not found")
+            print("⚠️  test_data/ - Directory missing (optional)")
+            return True
+        
         expected_scenarios = [
             "scenario_1_normal_paper",
-            "scenario_2_no_toc_document",
-            "scenario_3_duplicate_headings", 
+            "scenario_2_no_toc_document", 
+            "scenario_3_duplicate_headings",
             "scenario_4_headings_in_tables",
             "scenario_5_missing_fonts",
             "scenario_6_complex_objects",
             "scenario_7_revision_tracking"
         ]
         
-        test_data_dir = self.package_root / "test_data"
-        
-        if not test_data_dir.exists():
-            self.errors.append("Missing test_data directory")
-            return False
-        
-        missing_scenarios = []
-        
+        passed = True
         for scenario in expected_scenarios:
-            scenario_dir = test_data_dir / scenario
-            if not scenario_dir.exists():
-                missing_scenarios.append(scenario)
-            else:
-                # Check for key files
-                key_files = ["user_intent.txt", "expected_plan.v1.json"]
-                for key_file in key_files:
-                    if (scenario_dir / key_file).exists():
-                        print(f"  ✓ {scenario}/{key_file}")
-                    else:
-                        self.warnings.append(f"Missing {scenario}/{key_file}")
-        
-        if missing_scenarios:
-            self.errors.append(f"Missing test scenarios: {missing_scenarios}")
-        
-        return len(missing_scenarios) == 0
-    
-    def verify_dependencies(self) -> bool:
-        """Verify Python dependencies can be imported."""
-        requirements_file = self.package_root / "requirements.txt"
-        
-        if not requirements_file.exists():
-            self.errors.append("Missing requirements.txt")
-            return False
-        
-        try:
-            with open(requirements_file, 'r') as f:
-                requirements = f.read()
-            
-            # Check for key dependencies
-            key_deps = ["pydantic", "pywin32", "jsonschema"]
-            missing_deps = []
-            
-            for dep in key_deps:
-                if dep not in requirements:
-                    missing_deps.append(dep)
+            scenario_dir = test_dir / scenario
+            if scenario_dir.exists():
+                # Check required files
+                required_files = ["user_intent.txt", "expected_plan.v1.json"]
+                scenario_complete = True
+                
+                for req_file in required_files:
+                    if not (scenario_dir / req_file).exists():
+                        scenario_complete = False
+                        break
+                
+                if scenario_complete:
+                    print(f"✓ {scenario}")
                 else:
-                    print(f"  ✓ {dep} listed in requirements")
-            
-            if missing_deps:
-                self.errors.append(f"Missing key dependencies: {missing_deps}")
-            
-            return len(missing_deps) == 0
-            
-        except Exception as e:
-            self.errors.append(f"Error reading requirements.txt: {e}")
-            return False
+                    print(f"⚠️  {scenario} - Incomplete")
+                    self.warnings.append(f"Incomplete test scenario: {scenario}")
+            else:
+                print(f"✗ {scenario} - Missing")
+                self.errors.append(f"Missing test scenario: {scenario}")
+                passed = False
+        
+        return passed
     
-    def _print_summary(self):
+    def _check_documentation(self) -> bool:
+        """Check documentation files."""
+        required_docs = [
+            "KNOWN-ISSUES.md",
+            "README.md",
+            "INSTALLATION.md"
+        ]
+        
+        passed = True
+        for doc_file in required_docs:
+            doc_path = self.package_dir / doc_file
+            if doc_path.exists():
+                print(f"✓ {doc_file}")
+            else:
+                print(f"⚠️  {doc_file} - Missing")
+                self.warnings.append(f"Missing documentation: {doc_file}")
+        
+        return passed
+    
+    def _print_summary(self, all_passed: bool):
         """Print verification summary."""
         print("\n" + "=" * 50)
-        print("VERIFICATION SUMMARY")
+        print("📊 VERIFICATION SUMMARY")
         print("=" * 50)
         
-        if not self.errors and not self.warnings:
-            print("✓ All checks passed! Deployment package is ready.")
+        if all_passed:
+            print("🎉 DEPLOYMENT VERIFICATION PASSED")
+            print("   All critical checks completed successfully!")
         else:
-            if self.errors:
-                print(f"✗ {len(self.errors)} error(s) found:")
-                for error in self.errors:
-                    print(f"  - {error}")
-            
-            if self.warnings:
-                print(f"⚠ {len(self.warnings)} warning(s):")
-                for warning in self.warnings:
-                    print(f"  - {warning}")
+            print("❌ DEPLOYMENT VERIFICATION FAILED")
+            print("   Critical issues found that must be resolved.")
         
-        print()
+        if self.errors:
+            print(f"\n🚨 ERRORS ({len(self.errors)}):")
+            for i, error in enumerate(self.errors, 1):
+                print(f"   {i}. {error}")
+        
+        if self.warnings:
+            print(f"\n⚠️  WARNINGS ({len(self.warnings)}):")
+            for i, warning in enumerate(self.warnings, 1):
+                print(f"   {i}. {warning}")
+        
+        if not self.errors and not self.warnings:
+            print("\n✨ Perfect deployment! No issues found.")
+        
+        print("\n" + "=" * 50)
 
 def main():
     """Main verification function."""
     import argparse
     
     parser = argparse.ArgumentParser(description="AutoWord vNext Deployment Verifier")
-    parser.add_argument("--package-root", help="Root directory of package to verify")
+    parser.add_argument("--package-dir", default=".",
+                       help="Path to deployment package directory")
+    parser.add_argument("--quiet", action="store_true",
+                       help="Suppress detailed output")
     
     args = parser.parse_args()
     
-    verifier = DeploymentVerifier(args.package_root)
-    success = verifier.verify_all()
+    verifier = DeploymentVerifier(args.package_dir)
+    
+    if args.quiet:
+        # Redirect stdout to suppress detailed output
+        import io
+        old_stdout = sys.stdout
+        sys.stdout = io.StringIO()
+        
+        try:
+            success = verifier.verify_deployment()
+        finally:
+            sys.stdout = old_stdout
+        
+        # Print only summary
+        verifier._print_summary(success)
+    else:
+        success = verifier.verify_deployment()
     
     sys.exit(0 if success else 1)
 

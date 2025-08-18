@@ -29,26 +29,92 @@ logger = logging.getLogger(__name__)
 
 
 class QualityMetrics:
-    """Quality metrics for document formatting assessment."""
+    """Enhanced quality metrics for comprehensive document formatting assessment."""
     
     def __init__(self):
+        # Core quality scores (0.0 to 1.0)
         self.style_consistency_score: float = 0.0
         self.cross_reference_integrity_score: float = 0.0
         self.accessibility_score: float = 0.0
         self.formatting_quality_score: float = 0.0
         self.overall_score: float = 0.0
         
-        # Detailed metrics
+        # Quality grade (A+ to F)
+        self.quality_grade: str = "F"
+        
+        # Detailed issue lists
         self.inconsistent_styles: List[str] = []
         self.broken_cross_references: List[str] = []
         self.accessibility_issues: List[str] = []
         self.formatting_issues: List[str] = []
+        
+        # Improvement recommendations
+        self.improvement_recommendations: List[str] = []
         
         # Statistics
         self.total_styles_checked: int = 0
         self.total_cross_references_checked: int = 0
         self.total_accessibility_checks: int = 0
         self.total_formatting_checks: int = 0
+        
+        # Detailed metrics breakdown
+        self.style_metrics: Dict[str, Any] = {}
+        self.accessibility_metrics: Dict[str, Any] = {}
+        self.cross_reference_metrics: Dict[str, Any] = {}
+        self.formatting_metrics: Dict[str, Any] = {}
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert metrics to dictionary for serialization."""
+        return {
+            'scores': {
+                'style_consistency': self.style_consistency_score,
+                'cross_reference_integrity': self.cross_reference_integrity_score,
+                'accessibility': self.accessibility_score,
+                'formatting_quality': self.formatting_quality_score,
+                'overall': self.overall_score
+            },
+            'grade': self.quality_grade,
+            'issues': {
+                'inconsistent_styles': self.inconsistent_styles,
+                'broken_cross_references': self.broken_cross_references,
+                'accessibility_issues': self.accessibility_issues,
+                'formatting_issues': self.formatting_issues
+            },
+            'recommendations': self.improvement_recommendations,
+            'statistics': {
+                'total_styles_checked': self.total_styles_checked,
+                'total_cross_references_checked': self.total_cross_references_checked,
+                'total_accessibility_checks': self.total_accessibility_checks,
+                'total_formatting_checks': self.total_formatting_checks
+            }
+        }
+    
+    def get_summary_report(self) -> str:
+        """Generate a human-readable summary report."""
+        report = []
+        report.append(f"Document Quality Assessment")
+        report.append(f"=" * 30)
+        report.append(f"Overall Grade: {self.quality_grade} ({self.overall_score:.1%})")
+        report.append("")
+        
+        report.append("Detailed Scores:")
+        report.append(f"  Style Consistency: {self.style_consistency_score:.1%}")
+        report.append(f"  Cross-Reference Integrity: {self.cross_reference_integrity_score:.1%}")
+        report.append(f"  Accessibility Compliance: {self.accessibility_score:.1%}")
+        report.append(f"  Formatting Quality: {self.formatting_quality_score:.1%}")
+        report.append("")
+        
+        if self.improvement_recommendations:
+            report.append("Top Recommendations:")
+            for i, rec in enumerate(self.improvement_recommendations[:3], 1):
+                report.append(f"  {i}. {rec}")
+            report.append("")
+        
+        total_issues = (len(self.inconsistent_styles) + len(self.broken_cross_references) + 
+                       len(self.accessibility_issues) + len(self.formatting_issues))
+        report.append(f"Total Issues Found: {total_issues}")
+        
+        return "\n".join(report)
 
 
 class AdvancedValidator:
@@ -70,6 +136,21 @@ class AdvancedValidator:
         self.max_style_variations_per_type = 3
         self.min_accessibility_score = 0.7
         self.min_cross_reference_integrity = 0.9
+        
+        # Enhanced validation thresholds
+        self.min_font_size_accessibility = 9
+        self.max_heading_level_skip = 1
+        self.min_heading_text_length = 3
+        self.max_table_size_warning = (20, 10)  # rows, columns
+        self.color_contrast_ratio_min = 4.5
+        
+        # Quality metrics weights
+        self.quality_weights = {
+            'style_consistency': 0.3,
+            'cross_reference_integrity': 0.2,
+            'accessibility': 0.25,
+            'formatting_quality': 0.25
+        }
     
     def __enter__(self):
         """Enter context manager for COM resource management."""
@@ -363,43 +444,51 @@ class AdvancedValidator:
         metrics = QualityMetrics()
         
         try:
-            logger.info("Generating document quality metrics")
+            logger.info("Generating comprehensive document quality metrics")
             
-            # 1. Calculate style consistency score
-            metrics.style_consistency_score = self._calculate_style_consistency_score(structure)
+            # 1. Calculate style consistency score with detailed analysis
+            metrics.style_consistency_score = self._calculate_enhanced_style_consistency_score(structure)
             metrics.total_styles_checked = len(structure.styles)
             
-            # 2. Calculate cross-reference integrity score
-            metrics.cross_reference_integrity_score = self._calculate_cross_reference_score(structure)
+            # 2. Calculate cross-reference integrity score with repair analysis
+            metrics.cross_reference_integrity_score = self._calculate_enhanced_cross_reference_score(structure)
             metrics.total_cross_references_checked = len(structure.fields)
             
-            # 3. Calculate accessibility score
-            metrics.accessibility_score = self._calculate_accessibility_score(structure)
-            metrics.total_accessibility_checks = self._count_accessibility_checks(structure)
+            # 3. Calculate accessibility score with comprehensive checks
+            metrics.accessibility_score = self._calculate_enhanced_accessibility_score(structure)
+            metrics.total_accessibility_checks = self._count_enhanced_accessibility_checks(structure)
             
-            # 4. Calculate formatting quality score
-            metrics.formatting_quality_score = self._calculate_formatting_quality_score(structure)
-            metrics.total_formatting_checks = self._count_formatting_checks(structure)
+            # 4. Calculate formatting quality score with advanced metrics
+            metrics.formatting_quality_score = self._calculate_enhanced_formatting_quality_score(structure)
+            metrics.total_formatting_checks = self._count_enhanced_formatting_checks(structure)
             
-            # 5. Calculate overall score
+            # 5. Calculate weighted overall score
+            weights = self.quality_weights
             metrics.overall_score = (
-                metrics.style_consistency_score * 0.3 +
-                metrics.cross_reference_integrity_score * 0.2 +
-                metrics.accessibility_score * 0.25 +
-                metrics.formatting_quality_score * 0.25
+                metrics.style_consistency_score * weights['style_consistency'] +
+                metrics.cross_reference_integrity_score * weights['cross_reference_integrity'] +
+                metrics.accessibility_score * weights['accessibility'] +
+                metrics.formatting_quality_score * weights['formatting_quality']
             )
             
-            # 6. Collect detailed issues
-            metrics.inconsistent_styles = self._collect_inconsistent_styles(structure)
-            metrics.broken_cross_references = self._collect_broken_cross_references(structure)
-            metrics.accessibility_issues = self._collect_accessibility_issues(structure)
-            metrics.formatting_issues = self._collect_formatting_issues(structure)
+            # 6. Collect detailed issues with enhanced analysis
+            metrics.inconsistent_styles = self._collect_enhanced_inconsistent_styles(structure)
+            metrics.broken_cross_references = self._collect_enhanced_broken_cross_references(structure)
+            metrics.accessibility_issues = self._collect_enhanced_accessibility_issues(structure)
+            metrics.formatting_issues = self._collect_enhanced_formatting_issues(structure)
             
-            logger.info(f"Quality metrics generated: overall score {metrics.overall_score:.2f}")
+            # 7. Generate quality improvement recommendations
+            metrics.improvement_recommendations = self._generate_quality_improvement_recommendations(structure, metrics)
+            
+            # 8. Calculate quality grade
+            metrics.quality_grade = self._calculate_quality_grade(metrics.overall_score)
+            
+            logger.info(f"Enhanced quality metrics generated: overall score {metrics.overall_score:.2f} (Grade: {metrics.quality_grade})")
             
         except Exception as e:
             logger.error(f"Error generating quality metrics: {e}")
             metrics.overall_score = 0.0
+            metrics.quality_grade = "F"
             metrics.formatting_issues.append(f"Quality metrics generation failed: {e}")
         
         return metrics 
@@ -407,12 +496,22 @@ class AdvancedValidator:
     # Private methods for document integrity validation
     
     def _validate_structure_integrity(self, structure: StructureV1) -> List[str]:
-        """Validate basic document structure integrity."""
+        """Validate comprehensive document structure integrity."""
         errors = []
         
         # Check for required metadata
         if not structure.metadata:
             errors.append("Document integrity error: Missing metadata")
+        else:
+            # Enhanced metadata validation
+            if not structure.metadata.title:
+                errors.append("Document integrity warning: Missing document title")
+            if not structure.metadata.author:
+                errors.append("Document integrity warning: Missing document author")
+            if structure.metadata.page_count is not None and structure.metadata.page_count <= 0:
+                errors.append("Document integrity error: Invalid page count")
+            if structure.metadata.word_count is not None and structure.metadata.word_count < 0:
+                errors.append("Document integrity error: Invalid word count")
         
         # Check paragraph indexing consistency
         paragraph_indexes = [p.index for p in structure.paragraphs]
@@ -423,6 +522,13 @@ class AdvancedValidator:
         if len(paragraph_indexes) != len(set(paragraph_indexes)):
             errors.append("Document integrity error: Duplicate paragraph indexes found")
         
+        # Check for gaps in paragraph indexing
+        if paragraph_indexes:
+            expected_indexes = list(range(min(paragraph_indexes), max(paragraph_indexes) + 1))
+            missing_indexes = set(expected_indexes) - set(paragraph_indexes)
+            if missing_indexes:
+                errors.append(f"Document integrity error: Missing paragraph indexes: {sorted(missing_indexes)}")
+        
         # Validate heading references point to valid paragraphs
         max_paragraph_index = max(paragraph_indexes) if paragraph_indexes else -1
         for heading in structure.headings:
@@ -431,6 +537,42 @@ class AdvancedValidator:
                     f"Document integrity error: Heading '{heading.text}' references "
                     f"invalid paragraph index {heading.paragraph_index}"
                 )
+            # Check if heading paragraph is marked as heading
+            heading_paragraph = next((p for p in structure.paragraphs if p.index == heading.paragraph_index), None)
+            if heading_paragraph and not heading_paragraph.is_heading:
+                errors.append(
+                    f"Document integrity error: Paragraph {heading.paragraph_index} is referenced as heading "
+                    f"but not marked as heading paragraph"
+                )
+        
+        # Validate field references point to valid paragraphs
+        for field in structure.fields:
+            if field.paragraph_index > max_paragraph_index:
+                errors.append(
+                    f"Document integrity error: Field references invalid paragraph index {field.paragraph_index}"
+                )
+        
+        # Validate table references point to valid paragraphs
+        for table in structure.tables:
+            if table.paragraph_index > max_paragraph_index:
+                errors.append(
+                    f"Document integrity error: Table references invalid paragraph index {table.paragraph_index}"
+                )
+            # Validate cell references if present
+            if table.cell_references:
+                invalid_cell_refs = [ref for ref in table.cell_references if ref > max_paragraph_index]
+                if invalid_cell_refs:
+                    errors.append(
+                        f"Document integrity error: Table at paragraph {table.paragraph_index} "
+                        f"has invalid cell references: {invalid_cell_refs}"
+                    )
+        
+        # Check for orphaned style references
+        defined_styles = {s.name for s in structure.styles}
+        used_styles = {p.style_name for p in structure.paragraphs if p.style_name}
+        orphaned_styles = used_styles - defined_styles
+        if orphaned_styles:
+            errors.append(f"Document integrity error: Orphaned style references: {list(orphaned_styles)}")
         
         return errors
     
@@ -829,24 +971,88 @@ class AdvancedValidator:
         return errors
     
     def _generate_cross_reference_repair_recommendations(self, structure: StructureV1) -> List[str]:
-        """Generate cross-reference repair recommendations."""
+        """Generate comprehensive cross-reference repair recommendations."""
         warnings = []
         
         # Suggest updating all fields
         if structure.fields:
             warnings.append("Recommendation: Update all fields (Ctrl+A, F9) to refresh cross-references")
         
+        # Analyze broken references and suggest specific repairs
+        broken_refs = []
+        missing_targets = []
+        
         # Check for potential orphaned references
         ref_fields = [f for f in structure.fields if f.field_code and "REF" in f.field_code.upper()]
         if ref_fields:
             warnings.append(f"Found {len(ref_fields)} cross-references - verify all targets exist")
+            
+            # Analyze each reference for specific repair suggestions
+            heading_texts = {h.text.strip().lower() for h in structure.headings}
+            
+            for field in ref_fields:
+                if field.result_text and "Error!" in field.result_text:
+                    broken_refs.append(field.paragraph_index)
+                    
+                    # Try to suggest similar headings
+                    if field.field_code:
+                        ref_match = re.search(r'REF\s+([^\\]+)', field.field_code, re.IGNORECASE)
+                        if ref_match:
+                            ref_text = ref_match.group(1).strip().strip('"').lower()
+                            # Find similar headings
+                            similar_headings = [h for h in heading_texts if ref_text in h or h in ref_text]
+                            if similar_headings:
+                                warnings.append(
+                                    f"Repair suggestion for paragraph {field.paragraph_index}: "
+                                    f"Reference '{ref_text}' not found. Similar headings: {similar_headings[:3]}"
+                                )
+                            else:
+                                missing_targets.append(ref_text)
+        
+        # Check TOC references
+        toc_fields = [f for f in structure.fields if f.field_code and "TOC" in f.field_code.upper()]
+        for toc_field in toc_fields:
+            if not toc_field.result_text or "Error!" in (toc_field.result_text or ""):
+                warnings.append(
+                    f"Repair recommendation: TOC at paragraph {toc_field.paragraph_index} needs regeneration. "
+                    f"Try: Insert > Table of Contents > Update Table"
+                )
+        
+        # Check page references
+        page_refs = [f for f in structure.fields if f.field_code and "PAGEREF" in f.field_code.upper()]
+        broken_page_refs = [f for f in page_refs if f.result_text and "Error!" in f.result_text]
+        if broken_page_refs:
+            warnings.append(
+                f"Repair recommendation: {len(broken_page_refs)} broken page references found. "
+                f"Ensure referenced bookmarks or headings exist."
+            )
+        
+        # Provide specific repair strategies
+        if broken_refs:
+            warnings.append(
+                f"Repair strategy: {len(broken_refs)} broken references detected. "
+                f"1) Update fields, 2) Check target existence, 3) Recreate if necessary"
+            )
+        
+        if missing_targets:
+            warnings.append(
+                f"Missing reference targets detected: {missing_targets[:5]}. "
+                f"Consider adding these headings or updating references."
+            )
+        
+        # Advanced repair recommendations
+        if structure.headings:
+            warnings.append(
+                "Advanced repair: Use Insert > Cross-reference dialog to recreate broken references "
+                "with proper target selection"
+            )
         
         return warnings
     
     # Private methods for accessibility validation
     
     def _check_heading_accessibility(self, structure: StructureV1) -> List[str]:
-        """Check heading structure for accessibility compliance."""
+        """Check comprehensive heading structure for accessibility compliance."""
         errors = []
         
         if not structure.headings:
@@ -855,8 +1061,10 @@ class AdvancedValidator:
         
         # Check for proper heading hierarchy (no skipped levels)
         prev_level = 0
-        for heading in structure.headings:
-            if heading.level > prev_level + 1:
+        hierarchy_violations = []
+        for i, heading in enumerate(structure.headings):
+            if heading.level > prev_level + self.max_heading_level_skip:
+                hierarchy_violations.append((i, heading.level, prev_level))
                 errors.append(
                     f"Accessibility error: Heading level skipped - '{heading.text}' "
                     f"is level {heading.level} but previous was level {prev_level}"
@@ -864,16 +1072,71 @@ class AdvancedValidator:
             prev_level = heading.level
         
         # Check for meaningful heading text
+        short_headings = []
         for heading in structure.headings:
-            if len(heading.text.strip()) < 3:
+            if len(heading.text.strip()) < self.min_heading_text_length:
+                short_headings.append(heading.text)
                 errors.append(
                     f"Accessibility error: Heading text too short for screen readers: '{heading.text}'"
+                )
+        
+        # Check for duplicate heading text at same level
+        level_headings = defaultdict(list)
+        for heading in structure.headings:
+            level_headings[heading.level].append(heading.text.strip().lower())
+        
+        for level, texts in level_headings.items():
+            duplicates = [text for text, count in Counter(texts).items() if count > 1]
+            if duplicates:
+                errors.append(
+                    f"Accessibility error: Duplicate headings at level {level} confuse screen readers: {duplicates}"
+                )
+        
+        # Check for proper heading style usage
+        heading_style_issues = []
+        for heading in structure.headings:
+            if not heading.style_name:
+                heading_style_issues.append(heading.text)
+            elif not any(f"heading {heading.level}" in heading.style_name.lower() or 
+                        f"标题 {heading.level}" in heading.style_name.lower() for _ in [None]):
+                # Check if style name matches heading level
+                expected_styles = [f"Heading {heading.level}", f"标题 {heading.level}"]
+                if heading.style_name not in expected_styles:
+                    errors.append(
+                        f"Accessibility warning: Heading '{heading.text}' uses style '{heading.style_name}' "
+                        f"instead of proper heading style for level {heading.level}"
+                    )
+        
+        if heading_style_issues:
+            errors.append(
+                f"Accessibility error: {len(heading_style_issues)} headings without proper styles: "
+                f"{heading_style_issues[:3]}{'...' if len(heading_style_issues) > 3 else ''}"
+            )
+        
+        # Check for logical heading structure (H1 should come first)
+        if structure.headings and structure.headings[0].level != 1:
+            errors.append(
+                f"Accessibility error: Document should start with H1, but starts with H{structure.headings[0].level}"
+            )
+        
+        # Check for heading density (accessibility guideline)
+        if len(structure.paragraphs) > 0:
+            heading_density = len(structure.headings) / len(structure.paragraphs)
+            if heading_density < 0.05:  # Less than 5% headings
+                errors.append(
+                    f"Accessibility warning: Low heading density ({heading_density:.1%}). "
+                    f"Consider adding more headings for better navigation."
+                )
+            elif heading_density > 0.3:  # More than 30% headings
+                errors.append(
+                    f"Accessibility warning: High heading density ({heading_density:.1%}). "
+                    f"Too many headings may confuse screen readers."
                 )
         
         return errors
     
     def _check_table_accessibility(self, structure: StructureV1) -> List[str]:
-        """Check table accessibility compliance."""
+        """Check comprehensive table accessibility compliance."""
         errors = []
         
         for table in structure.tables:
@@ -885,10 +1148,54 @@ class AdvancedValidator:
                 )
             
             # Check table size for accessibility
-            if table.rows > 20 or table.columns > 10:
+            max_rows, max_cols = self.max_table_size_warning
+            if table.rows > max_rows or table.columns > max_cols:
                 errors.append(
                     f"Accessibility warning: Large table at paragraph {table.paragraph_index} "
-                    f"({table.rows}x{table.columns}) may be difficult to navigate"
+                    f"({table.rows}x{table.columns}) may be difficult to navigate. "
+                    f"Consider splitting into smaller tables or using alternative formats."
+                )
+            
+            # Check for minimum table size (single cell tables are usually not meaningful)
+            if table.rows == 1 and table.columns == 1:
+                errors.append(
+                    f"Accessibility warning: Single-cell table at paragraph {table.paragraph_index} "
+                    f"should be converted to regular paragraph"
+                )
+            
+            # Check for reasonable table proportions
+            if table.columns > table.rows * 3:
+                errors.append(
+                    f"Accessibility warning: Wide table at paragraph {table.paragraph_index} "
+                    f"({table.rows}x{table.columns}) may be difficult to read on narrow screens"
+                )
+            
+            # Check for empty tables
+            if table.rows <= 0 or table.columns <= 0:
+                errors.append(
+                    f"Accessibility error: Invalid table dimensions at paragraph {table.paragraph_index}: "
+                    f"{table.rows}x{table.columns}"
+                )
+            
+            # Advanced table accessibility checks
+            if table.cell_paragraph_map:
+                # Check for merged cells that might confuse screen readers
+                total_expected_cells = table.rows * table.columns
+                actual_cell_mappings = len(table.cell_paragraph_map)
+                if actual_cell_mappings != total_expected_cells:
+                    errors.append(
+                        f"Accessibility warning: Table at paragraph {table.paragraph_index} "
+                        f"has merged cells ({actual_cell_mappings} mappings for {total_expected_cells} cells). "
+                        f"Ensure merged cells have proper headers."
+                    )
+        
+        # Check for table density in document
+        if structure.tables and structure.paragraphs:
+            table_density = len(structure.tables) / len(structure.paragraphs)
+            if table_density > 0.2:  # More than 20% tables
+                errors.append(
+                    f"Accessibility warning: High table density ({table_density:.1%}). "
+                    f"Consider if all tables are necessary for accessibility."
                 )
         
         return errors
@@ -1138,3 +1445,357 @@ class AdvancedValidator:
             issues.append(f"Too many line spacing variations: {sorted(set(line_spacings))}")
         
         return issues
+    
+    # Enhanced quality metrics methods
+    
+    def _calculate_enhanced_style_consistency_score(self, structure: StructureV1) -> float:
+        """Calculate enhanced style consistency score with detailed analysis."""
+        if not structure.styles:
+            return 0.0
+        
+        score = 1.0
+        
+        # Penalize for style definition issues
+        style_names = [s.name for s in structure.styles]
+        duplicates = len(style_names) - len(set(style_names))
+        score -= (duplicates * 0.15)  # Increased penalty
+        
+        # Penalize for incomplete style definitions
+        incomplete_styles = sum(1 for s in structure.styles if not s.font or 
+                               (s.type == StyleType.PARAGRAPH and not s.paragraph))
+        score -= (incomplete_styles / len(structure.styles)) * 0.4  # Increased penalty
+        
+        # Penalize for excessive style variations
+        font_sizes = [s.font.size_pt for s in structure.styles if s.font and s.font.size_pt]
+        if len(set(font_sizes)) > self.max_style_variations_per_type:
+            score -= 0.25  # Increased penalty
+        
+        # Check for proper style hierarchy
+        heading_styles = [s for s in structure.styles if 'heading' in s.name.lower() or '标题' in s.name.lower()]
+        if len(heading_styles) < 3:  # Should have at least H1, H2, H3
+            score -= 0.1
+        
+        # Check for consistent font families
+        font_families = defaultdict(int)
+        for style in structure.styles:
+            if style.font and style.font.east_asian:
+                font_families[style.font.east_asian] += 1
+        
+        if len(font_families) > 3:  # Too many different fonts
+            score -= 0.1
+        
+        return max(0.0, min(1.0, score))
+    
+    def _calculate_enhanced_cross_reference_score(self, structure: StructureV1) -> float:
+        """Calculate enhanced cross-reference integrity score."""
+        if not structure.fields:
+            return 1.0  # No cross-references to break
+        
+        total_fields = len(structure.fields)
+        broken_fields = 0
+        warning_fields = 0
+        
+        for field in structure.fields:
+            if field.result_text and "Error!" in field.result_text:
+                broken_fields += 1
+            elif not field.result_text and field.field_code:
+                field_code_upper = field.field_code.upper()
+                if any(keyword in field_code_upper for keyword in ["REF", "PAGEREF", "TOC"]):
+                    warning_fields += 1
+        
+        # Calculate score with both broken and warning fields
+        score = 1.0 - (broken_fields / total_fields) - (warning_fields / total_fields * 0.5)
+        
+        # Bonus for having TOC
+        toc_fields = [f for f in structure.fields if f.field_code and "TOC" in f.field_code.upper()]
+        if toc_fields and all(f.result_text and "Error!" not in f.result_text for f in toc_fields):
+            score += 0.1
+        
+        return max(0.0, min(1.0, score))
+    
+    def _calculate_enhanced_accessibility_score(self, structure: StructureV1) -> float:
+        """Calculate enhanced accessibility compliance score."""
+        score = 1.0
+        
+        # Heading structure analysis (40% of accessibility score)
+        if not structure.headings:
+            score -= 0.4
+        else:
+            # Check heading hierarchy
+            prev_level = 0
+            hierarchy_violations = 0
+            for heading in structure.headings:
+                if heading.level > prev_level + self.max_heading_level_skip:
+                    hierarchy_violations += 1
+                prev_level = heading.level
+            
+            if hierarchy_violations > 0:
+                score -= (hierarchy_violations / len(structure.headings)) * 0.2
+            
+            # Check heading text quality
+            short_headings = sum(1 for h in structure.headings if len(h.text.strip()) < self.min_heading_text_length)
+            score -= (short_headings / len(structure.headings)) * 0.1
+            
+            # Check for H1 start
+            if structure.headings[0].level != 1:
+                score -= 0.1
+        
+        # Font accessibility (25% of accessibility score)
+        small_fonts = 0
+        total_styles = len(structure.styles)
+        if total_styles > 0:
+            for style in structure.styles:
+                if style.font and style.font.size_pt and style.font.size_pt < self.min_font_size_accessibility:
+                    small_fonts += 1
+            score -= (small_fonts / total_styles) * 0.25
+        
+        # Table accessibility (20% of accessibility score)
+        if structure.tables:
+            tables_without_headers = sum(1 for t in structure.tables if not t.has_header)
+            score -= (tables_without_headers / len(structure.tables)) * 0.2
+            
+            # Check for oversized tables
+            oversized_tables = sum(1 for t in structure.tables 
+                                 if t.rows > self.max_table_size_warning[0] or 
+                                    t.columns > self.max_table_size_warning[1])
+            score -= (oversized_tables / len(structure.tables)) * 0.1
+        
+        # Document structure (15% of accessibility score)
+        if structure.paragraphs:
+            heading_density = len(structure.headings) / len(structure.paragraphs)
+            if heading_density < 0.05:  # Too few headings
+                score -= 0.1
+            elif heading_density > 0.3:  # Too many headings
+                score -= 0.05
+        
+        return max(0.0, min(1.0, score))
+    
+    def _calculate_enhanced_formatting_quality_score(self, structure: StructureV1) -> float:
+        """Calculate enhanced formatting quality score."""
+        score = 1.0
+        
+        # Style consistency (40% of formatting score)
+        if structure.styles:
+            # Check line spacing consistency
+            line_spacings = [s.paragraph.line_spacing_value for s in structure.styles 
+                           if s.paragraph and s.paragraph.line_spacing_value]
+            if len(set(line_spacings)) > self.max_style_variations_per_type:
+                score -= 0.2
+            
+            # Check font size consistency
+            font_sizes = [s.font.size_pt for s in structure.styles if s.font and s.font.size_pt]
+            if len(set(font_sizes)) > self.max_style_variations_per_type:
+                score -= 0.2
+        
+        # Document structure (30% of formatting score)
+        if not structure.headings:
+            score -= 0.3
+        elif len(structure.headings) < 3:
+            score -= 0.15
+        
+        # Content organization (20% of formatting score)
+        if len(structure.paragraphs) < 5:
+            score -= 0.2
+        
+        # Field and reference quality (10% of formatting score)
+        if structure.fields:
+            broken_fields = sum(1 for f in structure.fields 
+                              if f.result_text and "Error!" in f.result_text)
+            score -= (broken_fields / len(structure.fields)) * 0.1
+        
+        return max(0.0, min(1.0, score))
+    
+    def _count_enhanced_accessibility_checks(self, structure: StructureV1) -> int:
+        """Count enhanced accessibility checks performed."""
+        checks = 0
+        checks += len(structure.headings) * 3  # Multiple checks per heading
+        checks += len(structure.tables) * 2    # Multiple checks per table
+        checks += len(structure.styles) * 2    # Multiple checks per style
+        checks += 5  # Document structure checks
+        return checks
+    
+    def _count_enhanced_formatting_checks(self, structure: StructureV1) -> int:
+        """Count enhanced formatting checks performed."""
+        checks = 0
+        checks += len(structure.styles) * 3     # Multiple checks per style
+        checks += len(structure.paragraphs)     # Paragraph checks
+        checks += len(structure.headings) * 2   # Multiple checks per heading
+        checks += len(structure.fields)        # Field checks
+        checks += 10  # Overall structure checks
+        return checks
+    
+    def _collect_enhanced_inconsistent_styles(self, structure: StructureV1) -> List[str]:
+        """Collect enhanced list of inconsistent styles."""
+        issues = []
+        
+        # Find duplicate style names
+        style_names = [s.name for s in structure.styles]
+        duplicates = [name for name, count in Counter(style_names).items() if count > 1]
+        issues.extend([f"Duplicate style: {name}" for name in duplicates])
+        
+        # Find incomplete styles
+        for style in structure.styles:
+            if not style.font:
+                issues.append(f"Missing font specification: {style.name}")
+            if style.type == StyleType.PARAGRAPH and not style.paragraph:
+                issues.append(f"Missing paragraph specification: {style.name}")
+            
+            # Check for inconsistent font specifications
+            if style.font:
+                if not style.font.east_asian and not style.font.latin:
+                    issues.append(f"No font family specified: {style.name}")
+                if style.font.size_pt and (style.font.size_pt < 8 or style.font.size_pt > 72):
+                    issues.append(f"Unusual font size: {style.name} ({style.font.size_pt}pt)")
+        
+        # Check for style hierarchy issues
+        heading_styles = [s for s in structure.styles if 'heading' in s.name.lower() or '标题' in s.name.lower()]
+        if len(heading_styles) < 3:
+            issues.append("Insufficient heading styles (should have at least H1, H2, H3)")
+        
+        return issues
+    
+    def _collect_enhanced_broken_cross_references(self, structure: StructureV1) -> List[str]:
+        """Collect enhanced list of broken cross-references."""
+        issues = []
+        
+        for field in structure.fields:
+            if field.result_text and "Error!" in field.result_text:
+                issues.append(f"Broken field at paragraph {field.paragraph_index}: {field.field_code or 'Unknown field'}")
+            elif not field.result_text and field.field_code:
+                field_code_upper = field.field_code.upper()
+                if any(keyword in field_code_upper for keyword in ["REF", "PAGEREF", "TOC"]):
+                    issues.append(f"Empty field result at paragraph {field.paragraph_index}: {field.field_code}")
+        
+        # Check for missing TOC
+        toc_fields = [f for f in structure.fields if f.field_code and "TOC" in f.field_code.upper()]
+        if not toc_fields and len(structure.headings) > 5:
+            issues.append("Missing table of contents for document with multiple headings")
+        
+        return issues
+    
+    def _collect_enhanced_accessibility_issues(self, structure: StructureV1) -> List[str]:
+        """Collect enhanced list of accessibility issues."""
+        issues = []
+        
+        # Heading issues
+        if not structure.headings:
+            issues.append("No headings for navigation")
+        else:
+            # Check hierarchy
+            prev_level = 0
+            for heading in structure.headings:
+                if heading.level > prev_level + self.max_heading_level_skip:
+                    issues.append(f"Heading level skip: '{heading.text}' (H{heading.level} after H{prev_level})")
+                prev_level = heading.level
+            
+            # Check short headings
+            short_headings = [h.text for h in structure.headings if len(h.text.strip()) < self.min_heading_text_length]
+            if short_headings:
+                issues.extend([f"Short heading text: '{text}'" for text in short_headings[:3]])
+        
+        # Font size issues
+        for style in structure.styles:
+            if style.font and style.font.size_pt and style.font.size_pt < self.min_font_size_accessibility:
+                issues.append(f"Small font in style: {style.name} ({style.font.size_pt}pt)")
+        
+        # Table issues
+        for table in structure.tables:
+            if not table.has_header:
+                issues.append(f"Table without header at paragraph {table.paragraph_index}")
+            if (table.rows > self.max_table_size_warning[0] or 
+                table.columns > self.max_table_size_warning[1]):
+                issues.append(f"Oversized table at paragraph {table.paragraph_index} ({table.rows}x{table.columns})")
+        
+        return issues
+    
+    def _collect_enhanced_formatting_issues(self, structure: StructureV1) -> List[str]:
+        """Collect enhanced list of formatting issues."""
+        issues = []
+        
+        # Style variation issues
+        font_sizes = [s.font.size_pt for s in structure.styles if s.font and s.font.size_pt]
+        if len(set(font_sizes)) > self.max_style_variations_per_type:
+            issues.append(f"Too many font size variations: {sorted(set(font_sizes))}")
+        
+        line_spacings = [s.paragraph.line_spacing_value for s in structure.styles 
+                        if s.paragraph and s.paragraph.line_spacing_value]
+        if len(set(line_spacings)) > self.max_style_variations_per_type:
+            issues.append(f"Too many line spacing variations: {sorted(set(line_spacings))}")
+        
+        # Document structure issues
+        if not structure.headings:
+            issues.append("No document headings for structure")
+        elif len(structure.headings) < 3:
+            issues.append("Insufficient document structure (fewer than 3 headings)")
+        
+        # Content organization issues
+        if len(structure.paragraphs) < 5:
+            issues.append("Very short document (fewer than 5 paragraphs)")
+        
+        # Field issues
+        broken_fields = [f for f in structure.fields if f.result_text and "Error!" in f.result_text]
+        if broken_fields:
+            issues.append(f"{len(broken_fields)} broken fields need updating")
+        
+        return issues
+    
+    def _generate_quality_improvement_recommendations(self, structure: StructureV1, metrics: QualityMetrics) -> List[str]:
+        """Generate specific quality improvement recommendations."""
+        recommendations = []
+        
+        # Style consistency recommendations
+        if metrics.style_consistency_score < 0.8:
+            recommendations.append("Improve style consistency: Standardize font families and sizes across similar elements")
+            if len(metrics.inconsistent_styles) > 0:
+                recommendations.append(f"Fix {len(metrics.inconsistent_styles)} style issues, starting with: {metrics.inconsistent_styles[0]}")
+        
+        # Cross-reference recommendations
+        if metrics.cross_reference_integrity_score < 0.9:
+            recommendations.append("Update all fields (Ctrl+A, F9) to fix cross-references")
+            if len(metrics.broken_cross_references) > 0:
+                recommendations.append(f"Repair {len(metrics.broken_cross_references)} broken references")
+        
+        # Accessibility recommendations
+        if metrics.accessibility_score < 0.7:
+            recommendations.append("Improve accessibility: Add proper heading structure and ensure minimum font sizes")
+            if "No headings" in str(metrics.accessibility_issues):
+                recommendations.append("Add heading structure using built-in heading styles")
+        
+        # Formatting recommendations
+        if metrics.formatting_quality_score < 0.8:
+            recommendations.append("Improve formatting consistency: Reduce style variations and ensure proper document structure")
+        
+        # Overall recommendations based on score
+        if metrics.overall_score < 0.6:
+            recommendations.append("Document needs significant quality improvements across multiple areas")
+        elif metrics.overall_score < 0.8:
+            recommendations.append("Document has good foundation but needs refinement in specific areas")
+        else:
+            recommendations.append("Document has high quality with minor improvements possible")
+        
+        return recommendations
+    
+    def _calculate_quality_grade(self, score: float) -> str:
+        """Calculate letter grade based on overall quality score."""
+        if score >= 0.95:
+            return "A+"
+        elif score >= 0.90:
+            return "A"
+        elif score >= 0.85:
+            return "A-"
+        elif score >= 0.80:
+            return "B+"
+        elif score >= 0.75:
+            return "B"
+        elif score >= 0.70:
+            return "B-"
+        elif score >= 0.65:
+            return "C+"
+        elif score >= 0.60:
+            return "C"
+        elif score >= 0.55:
+            return "C-"
+        elif score >= 0.50:
+            return "D"
+        else:
+            return "F"

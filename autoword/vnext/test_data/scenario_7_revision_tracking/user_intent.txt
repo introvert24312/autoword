@@ -1,0 +1,1 @@
+Process this document to remove "摘要" and "参考文献" sections. The document has track changes enabled with various revisions. Handle the revisions according to the configured revision strategy (accept, reject, or bypass).

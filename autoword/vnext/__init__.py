@@ -10,16 +10,24 @@ __author__ = "AutoWord Team"
 
 from .models import StructureV1, PlanV1, InventoryFullV1, ProcessingResult
 from .exceptions import VNextError, ExtractionError, PlanningError, ExecutionError, ValidationError, AuditError
-from .schema_validator import (
-    SchemaValidator, validate_structure, validate_plan, validate_inventory,
-    validate_with_detailed_errors
-)
-from .error_handler import (
-    PipelineErrorHandler, WarningsLogger, SecurityValidator, RollbackManager,
-    RevisionHandler, ProcessingStatus, RevisionHandlingStrategy, ErrorContext,
-    RecoveryResult
-)
-from .pipeline import VNextPipeline, ProgressReporter
+from .core import VNextConfig, LLMConfig, LocalizationConfig, ValidationConfig, AuditConfig, ExecutorConfig, CustomLLMClient, load_config, save_config
+from .simple_pipeline import SimplePipeline, VNextPipeline
+
+# 保持向后兼容性
+try:
+    from .schema_validator import (
+        SchemaValidator, validate_structure, validate_plan, validate_inventory,
+        validate_with_detailed_errors
+    )
+    from .error_handler import (
+        PipelineErrorHandler, WarningsLogger, SecurityValidator, RollbackManager,
+        RevisionHandler, ProcessingStatus, RevisionHandlingStrategy, ErrorContext,
+        RecoveryResult
+    )
+    from .pipeline import ProgressReporter
+except ImportError:
+    # 如果完整版本不可用，使用简化版本
+    pass
 
 __all__ = [
     "StructureV1",
@@ -32,20 +40,15 @@ __all__ = [
     "ExecutionError",
     "ValidationError",
     "AuditError",
-    "SchemaValidator",
-    "validate_structure",
-    "validate_plan", 
-    "validate_inventory",
-    "validate_with_detailed_errors",
-    "PipelineErrorHandler",
-    "WarningsLogger",
-    "SecurityValidator", 
-    "RollbackManager",
-    "RevisionHandler",
-    "ProcessingStatus",
-    "RevisionHandlingStrategy",
-    "ErrorContext",
-    "RecoveryResult",
-    "VNextPipeline",
-    "ProgressReporter"
+    "VNextConfig",
+    "LLMConfig",
+    "LocalizationConfig",
+    "ValidationConfig", 
+    "AuditConfig",
+    "ExecutorConfig",
+    "CustomLLMClient",
+    "load_config",
+    "save_config",
+    "SimplePipeline",
+    "VNextPipeline"
 ]
