@@ -103,29 +103,33 @@ class SimplePipeline:
                     
                     text = para.Range.Text.strip()[:120]  # 限制预览文本长度
                     if text:
+                        # 获取outline level和页码信息
+                        outline_level = para.OutlineLevel
+                        
+                        try:
+                            page_number = para.Range.Information(3)  # wdActiveEndPageNumber
+                        except:
+                            page_number = 1
+                        
                         para_info = {
                             "index": i,
                             "style_name": para.Style.NameLocal,
                             "preview_text": text,
-                            "is_heading": para.Style.NameLocal.startswith(("标题", "Heading"))
+                            "outline_level": outline_level,
+                            "page_number": page_number,
+                            "is_heading": outline_level <= 9,  # outline level 1-9 通常是标题
+                            "is_cover": page_number == 1  # 第1页标记为封面
                         }
                         structure["paragraphs"].append(para_info)
                         
-                        # 如果是标题，添加到标题列表
-                        if para_info["is_heading"]:
-                            heading_level = 1
-                            if "1" in para.Style.NameLocal:
-                                heading_level = 1
-                            elif "2" in para.Style.NameLocal:
-                                heading_level = 2
-                            elif "3" in para.Style.NameLocal:
-                                heading_level = 3
-                            
+                        # 基于outline level判断是否为标题
+                        if outline_level <= 9:  # 1-9级都是标题
                             structure["headings"].append({
                                 "paragraph_index": i,
-                                "level": heading_level,
+                                "level": outline_level,
                                 "text": text,
-                                "style_name": para.Style.NameLocal
+                                "style_name": para.Style.NameLocal,
+                                "outline_level": outline_level
                             })
                 
                 # 提取样式信息
@@ -525,36 +529,81 @@ class SimplePipeline:
         try:
             logger.info("强制应用样式到文档内容...")
             
-            # 遍历所有段落，重新应用样式
+            # 遍历所有段落，基于outline level识别和应用样式
             for para in doc.Paragraphs:
-                style_name = para.Style.NameLocal
-                
-                # 对标题段落强制重新应用样式
-                if "标题" in style_name or "Heading" in style_name:
-                    # 重新设置样式以触发格式更新
-                    para.Style = style_name
+                try:
+                    # 获取段落的大纲级别和页码信息
+                    outline_level = para.OutlineLevel
+                    style_name = para.Style.NameLocal
+                    text_preview = para.Range.Text.strip()[:30]
                     
-                    # 根据标题级别设置字体
-                    if "1" in style_name:
+                    # 获取段落所在页码
+                    try:
+                        page_number = para.Range.Information(3)  # wdActiveEndPageNumber
+                    except:
+                        page_number = 1  # 默认为第1页
+                    
+                    # 封面识别：第1页的内容不应用正文格式
+                    if page_number == 1:
+                        # 封面内容，跳过格式应用
+                        if text_preview and len(text_preview) > 5:  # 只对有实际内容的段落记录
+                            logger.info(f"跳过封面内容: {text_preview}... (page={page_number})")
+                        continue
+                    
+                    # 基于outline level判断标题级别
+                    if outline_level == 1:  # 1级标题
                         para.Range.Font.NameFarEast = "楷体"
                         para.Range.Font.Size = 12  # 小四
                         para.Range.Font.Bold = True
                         para.Range.ParagraphFormat.LineSpacing = 24  # 2倍行距
-                        logger.info(f"应用1级标题格式到: {para.Range.Text[:20]}...")
+                        logger.info(f"应用1级标题格式到: {text_preview}... (outline_level={outline_level})")
                         
-                    elif "2" in style_name:
+                    elif outline_level == 2:  # 2级标题
                         para.Range.Font.NameFarEast = "宋体"
                         para.Range.Font.Size = 12  # 小四
                         para.Range.Font.Bold = True
                         para.Range.ParagraphFormat.LineSpacing = 24  # 2倍行距
-                        logger.info(f"应用2级标题格式到: {para.Range.Text[:20]}...")
-                
-                # 对正文段落应用格式
-                elif "正文" in style_name or "Normal" in style_name:
-                    para.Range.Font.NameFarEast = "宋体"
-                    para.Range.Font.Size = 12  # 小四
-                    para.Range.Font.Bold = False
-                    para.Range.ParagraphFormat.LineSpacing = 24  # 2倍行距
+                        logger.info(f"应用2级标题格式到: {text_preview}... (outline_level={outline_level})")
+                        
+                    elif outline_level == 3:  # 3级标题
+                        para.Range.Font.NameFarEast = "宋体"
+                        para.Range.Font.Size = 12  # 小四
+                        para.Range.Font.Bold = True
+                        para.Range.ParagraphFormat.LineSpacing = 24  # 2倍行距
+                        logger.info(f"应用3级标题格式到: {text_preview}... (outline_level={outline_level})")
+                        
+                    elif outline_level == 10:  # 正文级别（Word中正文的outline level通常是10）
+                        para.Range.Font.NameFarEast = "宋体"
+                        para.Range.Font.Size = 12  # 小四
+                        para.Range.Font.Bold = False
+                        para.Range.ParagraphFormat.LineSpacing = 24  # 2倍行距
+                        # logger.info(f"应用正文格式到: {text_preview}... (outline_level={outline_level})")
+                    
+                    # 如果outline level不明确，回退到样式名判断
+                    elif "标题" in style_name or "Heading" in style_name:
+                        if "1" in style_name:
+                            para.Range.Font.NameFarEast = "楷体"
+                            para.Range.Font.Size = 12
+                            para.Range.Font.Bold = True
+                            para.Range.ParagraphFormat.LineSpacing = 24
+                            logger.info(f"基于样式应用1级标题格式到: {text_preview}...")
+                        elif "2" in style_name:
+                            para.Range.Font.NameFarEast = "宋体"
+                            para.Range.Font.Size = 12
+                            para.Range.Font.Bold = True
+                            para.Range.ParagraphFormat.LineSpacing = 24
+                            logger.info(f"基于样式应用2级标题格式到: {text_preview}...")
+                    
+                    # 对明确的正文样式应用格式
+                    elif "正文" in style_name or "Normal" in style_name:
+                        para.Range.Font.NameFarEast = "宋体"
+                        para.Range.Font.Size = 12
+                        para.Range.Font.Bold = False
+                        para.Range.ParagraphFormat.LineSpacing = 24
+                        
+                except Exception as e:
+                    # 单个段落处理失败不影响其他段落
+                    continue
             
             logger.info("样式应用完成")
             
