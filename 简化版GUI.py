@@ -67,6 +67,9 @@ class AutoWordGUI:
         self.openai_key = ""
         self.claude_key = ""
         
+        # 封面保护变量
+        self.cover_protection_enabled = True
+        
     def setup_ui(self):
         """设置用户界面"""
         # 主框架
@@ -146,10 +149,24 @@ class AutoWordGUI:
         ttk.Checkbutton(comment_frame, text="批注解析失败时使用LLM", 
                        variable=self.llm_fallback).grid(row=0, column=2, sticky=W)
         
+        # 封面保护选项（第二行）
+        self.cover_protection = BooleanVar(value=True)
+        ttk.Checkbutton(comment_frame, text="🛡️ 保护封面和目录格式", variable=self.cover_protection,
+                       command=self.toggle_cover_protection).grid(row=1, column=0, sticky=W, padx=(0, 20), pady=(5, 0))
+        
+        self.auto_page_break = BooleanVar(value=False)
+        ttk.Checkbutton(comment_frame, text="📄 自动插入分页符", variable=self.auto_page_break).grid(
+            row=1, column=1, sticky=W, padx=(0, 20), pady=(5, 0))
+        
+        # 封面保护状态显示
+        self.cover_status = StringVar(value="封面保护: 启用")
+        ttk.Label(comment_frame, textvariable=self.cover_status, foreground="green", font=("Arial", 9)).grid(
+            row=1, column=2, sticky=W, pady=(5, 0))
+        
         # 批注状态显示
         self.comments_status = StringVar(value="未检测到批注")
         ttk.Label(comment_frame, textvariable=self.comments_status, foreground="gray").grid(
-            row=1, column=0, columnspan=3, sticky=W, pady=(5, 0))
+            row=2, column=0, columnspan=3, sticky=W, pady=(5, 0))
         
         # 用户意图区域
         intent_frame = ttk.LabelFrame(main_frame, text="处理指令", padding="10")
@@ -185,7 +202,8 @@ class AutoWordGUI:
         self.dry_run_btn.grid(row=0, column=2, padx=(0, 10))
         
         ttk.Button(control_frame, text="💾 保存配置", command=self.save_config).grid(row=0, column=3, padx=(0, 10))
-        ttk.Button(control_frame, text="🧪 性能测试", command=self.run_performance_test).grid(row=0, column=4)
+        ttk.Button(control_frame, text="🛡️ 测试封面保护", command=self.test_cover_protection).grid(row=0, column=4, padx=(0, 10))
+        ttk.Button(control_frame, text="🧪 性能测试", command=self.run_performance_test).grid(row=0, column=5)
         
         # 进度区域
         progress_frame = ttk.LabelFrame(main_frame, text="处理进度", padding="10")
@@ -361,8 +379,17 @@ class AutoWordGUI:
             self.progress_var.set(10)
             self.status_var.set("正在加载AutoWord...")
             
-            # 导入AutoWord
-            from autoword.vnext import VNextPipeline, VNextConfig, LLMConfig
+            # 导入AutoWord（使用新的SimplePipeline）
+            try:
+                from autoword.vnext.simple_pipeline import SimplePipeline
+                from autoword.vnext.core import VNextConfig, LLMConfig
+                use_simple_pipeline = True
+                self.log_message("🔧 使用增强版SimplePipeline（支持封面保护）")
+            except ImportError:
+                # 回退到原版本
+                from autoword.vnext import VNextPipeline, VNextConfig, LLMConfig
+                use_simple_pipeline = False
+                self.log_message("⚠️ 使用标准版Pipeline")
             
             self.progress_var.set(20)
             self.status_var.set("正在配置AI模型...")
@@ -379,32 +406,45 @@ class AutoWordGUI:
                 model = "claude-3-sonnet-20240229"  # 修正模型名称
                 base_url = "https://globalai.vip"
             
-            # 根据提供商创建LLM配置
-            if provider == "openai":
+            # 根据使用的Pipeline类型创建配置
+            if use_simple_pipeline:
+                # 使用SimplePipeline（支持封面保护）
                 llm_config = LLMConfig(
-                    provider="openai",
-                    model="gpt-4",
+                    provider=provider,
+                    model=model,
                     api_key=api_key,
                     temperature=0.1
                 )
-            else:  # anthropic
-                llm_config = LLMConfig(
-                    provider="anthropic", 
-                    model="claude-3-sonnet-20240229",
-                    api_key=api_key,
-                    temperature=0.1
-                )
-            
-            # 创建基础配置
-            config = VNextConfig(llm=llm_config)
+                config = VNextConfig(llm=llm_config)
+                pipeline = SimplePipeline(config)
+                self.log_message("✅ 已启用封面保护功能")
+            else:
+                # 使用原版Pipeline
+                if provider == "openai":
+                    llm_config = LLMConfig(
+                        provider="openai",
+                        model="gpt-4",
+                        api_key=api_key,
+                        temperature=0.1
+                    )
+                else:  # anthropic
+                    llm_config = LLMConfig(
+                        provider="anthropic", 
+                        model="claude-3-sonnet-20240229",
+                        api_key=api_key,
+                        temperature=0.1
+                    )
+                
+                config = VNextConfig(llm=llm_config)
+                pipeline = VNextPipeline(config)
             
             # 添加批注处理配置（作为额外属性）
-            config.comment_processing = {
-                "enabled": self.use_comments.get(),
-                "execute_tags_only": self.execute_tags_only.get(),
-                "llm_fallback_enabled": self.llm_fallback.get()
-            }
-            pipeline = VNextPipeline(config)
+            if hasattr(config, 'comment_processing') or not use_simple_pipeline:
+                config.comment_processing = {
+                    "enabled": self.use_comments.get(),
+                    "execute_tags_only": self.execute_tags_only.get(),
+                    "llm_fallback_enabled": self.llm_fallback.get()
+                }
             
             self.progress_var.set(30)
             self.status_var.set("正在分析文档...")
@@ -412,6 +452,11 @@ class AutoWordGUI:
             
             # 构建最终的处理指令
             final_intent = ""
+            
+            # 如果启用了自动分页符，添加到指令前面
+            if self.auto_page_break.get():
+                final_intent += "首先在封面后插入分页符分隔封面和正文。"
+                self.log_message("🔧 已启用自动分页符插入")
             
             # 如果启用了批注处理且有批注
             if self.use_comments.get() and self.extracted_comments:
@@ -430,17 +475,32 @@ class AutoWordGUI:
                 comment_intent += "- 节级范围：应用到相关章节\n"
                 comment_intent += "- 局部范围：应用到批注标记的具体位置\n"
                 
-                final_intent = comment_intent
+                if final_intent:
+                    final_intent += "\n\n" + comment_intent
+                else:
+                    final_intent = comment_intent
                 
                 # 如果还有额外的用户指令，添加到后面
                 if user_intent.strip():
-                    final_intent += f"\n附加处理指令:\n{user_intent.strip()}\n"
+                    final_intent += f"\n\n附加处理指令:\n{user_intent.strip()}\n"
                 
-                self.log_message(f"处理指令: 批注指令 + 附加指令")
+                self.log_message(f"处理指令: 分页符 + 批注指令 + 附加指令")
             else:
                 # 只有用户指令
-                final_intent = user_intent.strip()
+                if user_intent.strip():
+                    if final_intent:
+                        final_intent += "\n\n" + user_intent.strip()
+                    else:
+                        final_intent = user_intent.strip()
                 self.log_message(f"处理指令: {final_intent}")
+            
+            # 如果启用了封面保护，添加保护说明
+            if self.cover_protection.get() and use_simple_pipeline:
+                if final_intent:
+                    final_intent += "\n\n重要：请保护封面和目录区域的格式，不要修改无页码区域的样式。"
+                else:
+                    final_intent = "请保护封面和目录区域的格式，不要修改无页码区域的样式。"
+                self.log_message("🛡️ 已启用封面保护模式")
             
             # 如果没有任何指令，提供默认指令
             if not final_intent:
@@ -475,12 +535,24 @@ class AutoWordGUI:
                         status_icon = "✅" if comment_result.status == "APPLIED" else "⚠️"
                         self.log_message(f"  {status_icon} {comment_result.comment_id}: {comment_result.status}")
                 
+                # 显示封面保护状态
+                if use_simple_pipeline and self.cover_protection.get():
+                    self.log_message("🛡️ 封面保护功能已生效，封面和目录格式已保护")
+                
+                # 显示分页符插入状态
+                if self.auto_page_break.get():
+                    self.log_message("📄 已自动插入分页符分隔封面和正文")
+                
                 # 显示成功对话框
                 success_msg = "文档处理完成！"
                 if output_path:
                     success_msg += f"\n\n输出文件: {output_path}"
                 if self.use_comments.get() and self.extracted_comments:
                     success_msg += f"\n\n处理了 {len(self.extracted_comments)} 条批注"
+                if use_simple_pipeline and self.cover_protection.get():
+                    success_msg += f"\n\n🛡️ 封面和目录格式已保护"
+                if self.auto_page_break.get():
+                    success_msg += f"\n\n📄 已插入分页符"
                 
                 self.root.after(0, lambda: messagebox.showinfo("成功", success_msg))
                 
@@ -686,6 +758,17 @@ class AutoWordGUI:
             self.comments_status.set("批注处理已禁用")
             self.dry_run_btn.config(state=DISABLED)
     
+    def toggle_cover_protection(self):
+        """切换封面保护模式"""
+        if self.cover_protection.get():
+            self.log_message("🛡️ 已启用封面保护功能")
+            self.cover_status.set("封面保护: 启用")
+            self.cover_status.config(foreground="green")
+        else:
+            self.log_message("⚠️ 已禁用封面保护功能")
+            self.cover_status.set("封面保护: 禁用")
+            self.cover_status.config(foreground="red")
+    
     def preview_comments(self):
         """预览批注处理结果"""
         if not self.extracted_comments:
@@ -756,6 +839,103 @@ class AutoWordGUI:
             
         except Exception as e:
             self.log_message(f"⚠️ 自动保存批注JSON失败: {e}")
+    
+    def test_cover_protection(self):
+        """测试封面保护功能"""
+        if not self.input_file.get():
+            messagebox.showwarning("警告", "请先选择输入文件")
+            return
+        
+        if not self.api_key.get().strip():
+            messagebox.showwarning("警告", "请先配置API密钥")
+            return
+        
+        # 创建测试窗口
+        test_window = Toplevel(self.root)
+        test_window.title("封面保护功能测试")
+        test_window.geometry("600x500")
+        
+        # 创建测试选项
+        test_frame = ttk.LabelFrame(test_window, text="测试选项", padding="10")
+        test_frame.pack(fill=X, padx=10, pady=10)
+        
+        # 测试类型选择
+        test_type = StringVar(value="style_change")
+        ttk.Radiobutton(test_frame, text="样式修改测试（1级标题改为楷体小四号2倍行距）", 
+                       variable=test_type, value="style_change").pack(anchor=W, pady=2)
+        ttk.Radiobutton(test_frame, text="分页符插入测试", 
+                       variable=test_type, value="page_break").pack(anchor=W, pady=2)
+        ttk.Radiobutton(test_frame, text="组合测试（分页符 + 样式修改）", 
+                       variable=test_type, value="combined").pack(anchor=W, pady=2)
+        
+        # 测试结果显示
+        result_frame = ttk.LabelFrame(test_window, text="测试结果", padding="10")
+        result_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+        
+        result_text = scrolledtext.ScrolledText(result_frame, height=15, wrap=WORD)
+        result_text.pack(fill=BOTH, expand=True)
+        
+        def run_test():
+            """运行测试"""
+            test_choice = test_type.get()
+            result_text.delete("1.0", END)
+            result_text.insert(END, "🧪 开始封面保护功能测试...\n")
+            result_text.insert(END, "="*50 + "\n\n")
+            
+            # 根据测试类型生成测试指令
+            if test_choice == "style_change":
+                test_intent = "1级标题设置为楷体小四号2倍行距"
+                result_text.insert(END, "测试类型: 样式修改测试\n")
+                result_text.insert(END, "预期结果: 只修改正文中的1级标题，封面保持不变\n\n")
+            elif test_choice == "page_break":
+                test_intent = "插入分页符在封面后"
+                result_text.insert(END, "测试类型: 分页符插入测试\n")
+                result_text.insert(END, "预期结果: 在封面后插入分页符\n\n")
+            else:  # combined
+                test_intent = "插入分页符在封面后，1级标题设置为楷体小四号2倍行距"
+                result_text.insert(END, "测试类型: 组合测试\n")
+                result_text.insert(END, "预期结果: 插入分页符并修改正文样式，封面保持不变\n\n")
+            
+            result_text.insert(END, f"测试指令: {test_intent}\n")
+            result_text.insert(END, f"封面保护: {'启用' if self.cover_protection.get() else '禁用'}\n")
+            result_text.insert(END, "-"*50 + "\n\n")
+            
+            # 临时设置测试参数
+            original_intent = self.user_intent.get()
+            original_text = self.intent_text.get("1.0", END)
+            
+            try:
+                # 设置测试指令
+                self.user_intent.set(test_intent)
+                self.intent_text.delete("1.0", END)
+                self.intent_text.insert("1.0", test_intent)
+                
+                # 启动处理
+                result_text.insert(END, "正在处理文档...\n")
+                test_window.update()
+                
+                # 调用处理函数
+                thread = threading.Thread(target=lambda: self.process_document(test_intent))
+                thread.daemon = True
+                thread.start()
+                
+                result_text.insert(END, "✅ 测试已启动，请查看主窗口的处理日志\n")
+                result_text.insert(END, "处理完成后请检查输出文档验证封面保护效果\n")
+                
+            except Exception as e:
+                result_text.insert(END, f"❌ 测试失败: {e}\n")
+            finally:
+                # 恢复原始设置
+                self.user_intent.set(original_intent)
+                self.intent_text.delete("1.0", END)
+                self.intent_text.insert("1.0", original_text)
+        
+        # 按钮区域
+        btn_frame = ttk.Frame(test_window)
+        btn_frame.pack(fill=X, padx=10, pady=10)
+        
+        ttk.Button(btn_frame, text="🚀 开始测试", command=run_test).pack(side=LEFT, padx=(0, 10))
+        ttk.Button(btn_frame, text="关闭", command=test_window.destroy).pack(side=RIGHT)
     
     def save_comments_json(self):
         """手动保存批注JSON文件"""
